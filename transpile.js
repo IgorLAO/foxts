@@ -222,11 +222,19 @@ function isConnection(node, ctx) {
   return ctx.checker.typeToString(ctx.checker.getTypeAtLocation(node)) === 'Connection';
 }
 
-// lowerSqlMethod baixa db.exec/disconnect para SQL pass-through do VFP.
+// lowerSqlMethod baixa db.exec/disconnect/transações/getProp para SQL pass-through do VFP.
 function lowerSqlMethod(recv, method, args, node, ctx) {
   switch (method) {
     case 'exec': return `SQLEXEC(${[recv, ...args].join(', ')})`;   // SQLEXEC(handle, sql [, cursor])
     case 'disconnect': return `SQLDISCONNECT(${recv})`;
+    // Frente D — transações SQL Server via pass-through (SQLEXEC com o comando T-SQL).
+    case 'begin': return `SQLEXEC(${recv}, "BEGIN TRANSACTION")`;
+    case 'commit': return `SQLEXEC(${recv}, "COMMIT TRANSACTION")`;
+    case 'rollback': return `SQLEXEC(${recv}, "ROLLBACK TRANSACTION")`;
+    // SQLGETPROP/SQLSETPROP: lê/grava propriedades da conexão (ex.: "Transactions",
+    // "ConnectTimeout", "Asynchronous"). getProp(p) -> SQLGETPROP(db, p).
+    case 'getProp': return `SQLGETPROP(${[recv, ...args].join(', ')})`;
+    case 'setProp': return `SQLSETPROP(${[recv, ...args].join(', ')})`;
     default: throw new CompileError(`método de conexão ".${method}()"`, node, ctx.sf);
   }
 }
@@ -319,6 +327,17 @@ function emitExpr(node, ctx) {
     // recv.prop -> recv.prop (o TypeChecker já validou; receptor não-primitivo). Espelha
     // o caminho de obj.metodo() em emitCall.
     if (typeKind(node.expression, checker) === 'unknown') {
+      // GUARDA: variável de 1 letra a–j que segura um OBJETO e é usada como recv.prop
+      // colide com as letras de WORK AREA do VFP: `c.campo` é lido como ALIAS(C).campo
+      // ("Variable not found"). Rejeitar (nunca palpitar) e sugerir nome >=2 letras.
+      // Só para receptores não-primitivos (objeto): contadores/strings de 1 letra (i, n)
+      // têm typeKind primitivo e não chegam aqui.
+      if (ts.isIdentifier(node.expression) && /^[a-j]$/.test(node.expression.text)) {
+        throw new CompileError(
+          `variavel de 1 letra "${node.expression.text}" que segura um objeto e usada como "${node.expression.text}.${node.name.text}": as letras a-j sao aliases de work area no VFP, entao "${node.expression.text}.${node.name.text}" e lido como ALIAS(${node.expression.text.toUpperCase()}).${node.name.text} e falha em runtime. Use um nome com 2+ letras (ex.: loRow, loCli)`,
+          node, sf
+        );
+      }
       return `${emitExpr(node.expression, ctx)}.${node.name.text}`;
     }
     throw new CompileError(`acesso a propriedade ".${node.name.text}"`, node, sf);
@@ -741,6 +760,42 @@ function findSchemaByName(sf, name) {
     if (s && s.name === name) return s;
   }
   return null;
+}
+
+// defaultForBase: default FoxPro adequado ao tipo base de um campo de schema.
+//   num -> 0 (numerico)   bool -> .F. (logico)   str -> "" (string)
+function defaultForBase(base) {
+  if (base === 'num') return '0';
+  if (base === 'bool') return '.F.';
+  return '""';
+}
+
+// bindMemberDefault: infere o default do membro de form vinculado por bind="campo".
+// Sem isso o default é sempre "" (string) e validar um campo num() antes de qualquer
+// input compara "" < n e erra. Tenta, nesta ordem:
+//   1. atributo `type` no proprio controle (type="num"|"str"|"bool");
+//   2. o tipo declarado do campo no schema referenciado em @Form({ validate: Schema }).
+// Devolve a string do default FoxPro ('0' / '.F.' / '""'); fallback '""'.
+function bindMemberDefault(field, attrs, ir, ctx) {
+  // 1. type explicito no controle
+  if (attrs && typeof attrs.type === 'string') {
+    const t = attrs.type.toLowerCase();
+    if (t === 'num' || t === 'number' || t === 'numeric' || t === 'int') return '0';
+    if (t === 'bool' || t === 'boolean' || t === 'logical') return '.F.';
+    if (t === 'str' || t === 'string' || t === 'char') return '""';
+  }
+  // 2. tipo do campo no schema de @Form({ validate: Schema })
+  if (ir && ir._validate) {
+    const sch = findSchemaByName(ctx.sf, ir._validate);
+    if (sch) {
+      for (const p of sch.shape.properties) {
+        if (ts.isPropertyAssignment(p) && p.name.getText(ctx.sf) === field) {
+          try { return defaultForBase(parseRule(p.initializer, ctx.sf).base); } catch (_) { /* shape estranho: cai no default */ }
+        }
+      }
+    }
+  }
+  return '""';
 }
 
 // applyFormValidate: @Form({ validate: Schema }) -> método Validar() do form. As mesmas
@@ -1569,7 +1624,10 @@ function controlLeaf(model, ctx, st) {
   if (typeof a.bind === 'string') {
     props.ControlSource = `"ThisForm.${a.bind}"`; // binding nativo do VFP
     if (!st.ir.members.some((m) => m.name.toLowerCase() === a.bind.toLowerCase())) {
-      st.ir.members.push({ name: a.bind, kind: 'property', desc: `(bind) ${a.bind}`, default: '""' });
+      // default conforme o tipo declarado do campo (schema/validate ou type=) — campo
+      // num() ganha default 0 (nao "") p/ @Form({ validate }) nao comparar "" < n.
+      const def = bindMemberDefault(a.bind, a, st.ir, ctx);
+      st.ir.members.push({ name: a.bind, kind: 'property', desc: `(bind) ${a.bind}`, default: def });
     }
   }
   const cls = applyStyle(props, a); // utilitários class podem definir w-/h-

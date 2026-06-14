@@ -30,6 +30,12 @@ const EXPECT = [
   'SQLCONNECT("vendasDSN", "sa", "senha")',
   'IF (db > 0)',
   'SQLDISCONNECT(db)',
+  // Frente D — transações + SQLGETPROP/SQLSETPROP (db.ts)
+  'SQLSETPROP(db, "Transactions", 2)',
+  'modo = SQLGETPROP(db, "Transactions")',
+  'SQLEXEC(db, "BEGIN TRANSACTION")',
+  'SQLEXEC(db, "COMMIT TRANSACTION")',
+  'SQLEXEC(db, "ROLLBACK TRANSACTION")',
 ];
 let structOk = 0;
 console.log('\n  SQL pass-through gerado:');
