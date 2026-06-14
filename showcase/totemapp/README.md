@@ -1,6 +1,30 @@
-# Totem rodável — o fluxo inteiro numa janela VFP (mocado)
+# Totem rodável — app VFP interativo (mocado)
 
-Junta tudo: o front do app React (Totem Alimentação) virou um **app VFP navegável**
+Junta tudo: o front do app React (Totem Alimentação) virou um **app VFP** real.
+Duas versões:
+
+## 1) `Cardapio.form.tsx` — INTERATIVO (cada botão tem função)
+Sem imagens estáticas — controles VFP de verdade com lógica:
+- **[+] / [−]** por produto: mudam a quantidade (estado real no form).
+- **Total** recalcula na hora (`q*preço` somados) e aparece em `R$`.
+- **[Limpar]** zera o pedido. **[Pagar]** valida, mostra "Processando…", anima a
+  barra (`<Timer>`) e aprova com uma senha; depois zera o pedido.
+- Estado (`qBurger`, `total`, …) em propriedades do form; `add/sub/refresh/pagar/tick`
+  são métodos TS compilados para FoxPro (`This.total = This.qBurger * 25 + …`,
+  `This.lblTotal.Caption = "R$ " + TRANSFORM(This.total)`).
+
+Provado em runtime no VFP (`test_cardapio.prg`): 2×Burger+1×Batata → total 65;
+−1 Burger → 40; Pagar → "Processando…" → "Pagamento aprovado! Senha A123" → total 0.
+
+Rodar:
+```
+node foxc.js build showcase/totemapp/Cardapio.form.tsx -o showcase/totemapp/Cardapio.scx
+C:\projectos\testesvf\foxcli\foxcli.exe run showcase/totemapp/run_cardapio.prg --timeout 600
+#  ou no VFP:  DO FORM showcase\totemapp\Cardapio.scx
+```
+
+## 2) `TotemApp.form.tsx` — fluxo visual (telas renderizadas)
+Versão "passeio" pelo design completo: o front do app React virou um **app VFP navegável**
 que você roda e clica pelo fluxo completo, com **animação no pagamento**. Sem backend
 — tudo mocado.
 
