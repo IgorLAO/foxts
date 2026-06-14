@@ -13,7 +13,7 @@ const { execFileSync } = require('child_process');
 const layout = require('./layout');
 const { transpileForm, finalizeFormIR } = require('./transpile');
 
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 
 function buildScx(tsRel, outRel) {
   const ir = finalizeFormIR(transpileForm(path.resolve(tsRel)));

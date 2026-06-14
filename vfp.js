@@ -18,7 +18,7 @@ const { execFileSync } = require('child_process');
 const { transpile, transpileForm, collectRoute, collectMenus, finalizeFormIR, setTheme, setMessages } = require('./transpile');
 const layout = require('./layout'); // motor de layout (flex | yoga)
 
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 const SELF = path.resolve(__filename);
 const CORE = path.join(__dirname, 'decorators.ts'); // @vfp/core (tipos/decorators)
 

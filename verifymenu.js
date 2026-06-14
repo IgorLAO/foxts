@@ -9,7 +9,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { transpile } = require('./transpile');
 
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 const SRC = path.resolve('examples/menu.ts');
 const PRG = path.resolve('dist/menu.prg');
 const DRV = path.resolve('dist/_menudrv.prg');

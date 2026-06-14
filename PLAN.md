@@ -60,7 +60,7 @@
 
 ## ⚠️ A melhorar / 💳 Dívida técnica
 - `transpile.js` é monolítico (~1k linhas: parser+ir+jsx+emitter juntos). Modularizar em `compiler/{parser,ir,jsx,emitter}` (H4).
-- **Path do foxcli hardcoded** (`C:\projectos\testesvf\foxcli\foxcli.exe`) em `verify*.js`/`foxc.js`/`vfp.js`. Há override `FOXCLI`/env, mas o default é fixo.
+- ~~**Path do foxcli hardcoded**~~ ✅ **RESOLVIDO:** módulo centralizado `foxcli-path.js` com precedência: `FOXCLI` env > `FOXCLI_HOME` env > discovery relativo ao repo (../foxcli/) > fallback `C:\projectos\testesvf\foxcli\foxcli.exe`. Todos os consumidores (`foxc.js`, `vfp.js`, `verify*.js` — incluindo `verify.js` que era bare hardcode sem env override) agora fazem `require('./foxcli-path')`.
 - **Oráculo + `@vfp/core`:** `require("@vfp/core")` não resolve em runtime; `foxc.build` tolera (pula oráculo). Forms com `cases` devem importar `"../decorators"`.
 - ~~Colisão de nomes de `@Component`~~ ✅ resolvido (B3, dedupe em `finalizeFormIR`).
 - ~~Sem linking cross-file~~ ✅ resolvido (G: `app.prg` linka via `SET PROCEDURE`; `vfp pack` → PJX/EXE). **Porém** `app.prg` usa **caminhos absolutos** (`SET PROCEDURE TO (abspath)`) — não portável entre máquinas; gerar caminhos relativos + `SET DEFAULT` é melhoria futura.
