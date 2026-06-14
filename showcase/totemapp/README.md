@@ -59,3 +59,23 @@ C:\projectos\testesvf\foxcli\foxcli.exe run showcase/totemapp/run.prg --timeout 
 ```
 > Os PNGs e o SCX são gerados (fora do git). Versionados: `TotemApp.form.tsx`, `run.prg`,
 > o renderer e os assets-fonte em `../totem/assets/`.
+
+## 3) `ModernTotem.form.tsx` — MODERNO + interativo (recomendado)
+Junta o fluxo (Home → Cardápio interativo → Aprovado) num form só, com visual moderno.
+Técnica: **fundo renderizado** (canvas, `build_modern.js`) + **overlay absoluto** de
+controles transparentes por cima (recurso novo `<View absolute>` + `left/top`):
+- hotspots transparentes (`<Label transparent onClick>`) sobre os botões desenhados
+  [+]/[−]/[Pagar]/[Limpar] — cada um chama sua função;
+- labels transparentes para os números que mudam (quantidade por produto, total, status);
+- barra de progresso (`<Shape>`) que cresce no pagamento (`<Timer>`).
+Estado real (`q*`, `total`, `step`) em propriedades do form. Provado no VFP
+(`capture_modern.prg`): 2×Burger+1×Batata → total 65, label '2'. Veja `preview_modern.png`
+(composição nas coordenadas exatas dos overlays = o que a janela mostra).
+
+Rodar:
+```
+npm i @napi-rs/canvas
+node showcase/totemapp/build_modern.js
+node foxc.js build showcase/totemapp/ModernTotem.form.tsx -o showcase/totemapp/ModernTotem.scx
+C:\projectos\testesvf\foxcli\foxcli.exe run showcase/totemapp/run_modern.prg --timeout 600
+```

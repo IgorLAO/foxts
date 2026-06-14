@@ -11,3 +11,4 @@ dist/
 
 # telas geradas do totem (regeneraveis via build_flow.js/build_totem.js)
 showcase/totem/*.png
+showcase/totemapp/*.png

@@ -1510,6 +1510,7 @@ function parseJsx(node, ctx, scope = {}) {
         justify: typeof attrs.justify === 'string' ? attrs.justify : undefined,
         align: typeof attrs.align === 'string' ? attrs.align : undefined,
         wrap: attrs.wrap === true || attrs.flexWrap === 'wrap', // quebra de linha (precisa de width/height fixo)
+        absolute: attrs.absolute === true, // overlay: filhos posicionados por left/top
         w: typeof attrs.width === 'number' ? attrs.width : undefined,  // size fixo habilita justify/align/wrap
         h: typeof attrs.height === 'number' ? attrs.height : undefined,
         children: jsxKids(node).map((c) => parseJsx(c, ctx, scope)),
@@ -1665,7 +1666,9 @@ function controlLeaf(model, ctx, st) {
   }
   const w = typeof a.width === 'number' ? a.width : (cls.width != null ? cls.width : sz.w);
   const h = typeof a.height === 'number' ? a.height : (cls.height != null ? cls.height : sz.h);
-  return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => { ctrl.left = x; ctrl.top = y; ctrl.width = W; ctrl.height = H; st.ir.controls.push(ctrl); } };
+  return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a),
+    absLeft: typeof a.left === 'number' ? a.left : 0, absTop: typeof a.top === 'number' ? a.top : 0, // overlay (pai absolute)
+    place: (x, y, W, H) => { ctrl.left = x; ctrl.top = y; ctrl.width = W; ctrl.height = H; st.ir.controls.push(ctrl); } };
 }
 
 // componentLeaf: componente built-in (OpenFormButton/SaveButton) -> folha de layout.
@@ -1806,7 +1809,7 @@ function toLayoutTree(model, ctx, st) {
   if (model.kind === 'box') {
     return {
       container: true, dir: model.dir, gap: model.gap, pad: model.pad, justify: model.justify, align: model.align, wrap: model.wrap,
-      w: model.w, h: model.h,
+      absolute: model.absolute, w: model.w, h: model.h,
       children: model.children.map((c) => toLayoutTree(c, ctx, st)),
     };
   }

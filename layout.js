@@ -85,9 +85,25 @@ function computeYoga(node) {
   root.freeRecursive();
 }
 
+// ---- backend absoluto (overlay) -------------------------------------------
+// Caixa `absolute`: cada filho é posicionado pelo seu próprio left/top (absLeft/
+// absTop), z-empilhado sobre o mesmo ponto — para sobrepor controles a uma imagem
+// de fundo. Filhos container ainda fazem seu layout interno a partir da posição.
+function placeAbsolute(node, ox, oy) {
+  const pad = node.pad || 0;
+  for (const ch of node.children) {
+    const cx = ox + pad + (ch.absLeft || 0);
+    const cy = oy + pad + (ch.absTop || 0);
+    if (!ch.container) ch.place(cx, cy, ch.w, ch.h);
+    else if (ch.absolute) placeAbsolute(ch, cx, cy);
+    else computeFlex(ch, cx, cy); // sub-flex a partir da posição absoluta
+  }
+}
+
 // compute: posiciona a árvore (chama place() em cada folha) com o backend ativo.
 function compute(tree) {
-  if (_engine === 'yoga' && _yoga) computeYoga(tree);
+  if (tree.absolute) placeAbsolute(tree, 0, 0);
+  else if (_engine === 'yoga' && _yoga) computeYoga(tree);
   else computeFlex(tree, 0, 0);
 }
 

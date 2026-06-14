@@ -210,6 +210,7 @@ export interface BoxProps extends FlexItemProps {
   wrap?: boolean;        // flex-wrap (requer width/height fixo)
   flexWrap?: "wrap" | "nowrap";
   flexDirection?: "row" | "column"; // só <View> usa p/ escolher a direção
+  absolute?: boolean;    // overlay: filhos posicionados por left/top (sobre uma imagem de fundo)
   children?: any;
 }
 
