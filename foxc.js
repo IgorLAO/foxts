@@ -33,7 +33,7 @@ function loadModule(tsPath) {
   if (fs.existsSync('fox.ts')) emitJs('fox.ts', 'dist/fox.js');
   if (fs.existsSync('decorators.ts')) emitJs('decorators.ts', 'dist/decorators.js');
   // o módulo vai para dist/oracle/ — assim "../fox" aponta para dist/fox.js
-  const jsPath = emitJs(tsPath, path.join('dist/oracle', path.basename(tsPath, '.ts') + '.cjs'));
+  const jsPath = emitJs(tsPath, path.join('dist/oracle', path.basename(tsPath).replace(/\.tsx?$/, '') + '.cjs'));
   delete require.cache[jsPath];
   return require(jsPath);
 }
@@ -69,7 +69,7 @@ function build(tsPath, outScx) {
   finalizeFormIR(form, transpiled);
 
   fs.mkdirSync('dist', { recursive: true });
-  const jsonPath = path.resolve('dist', path.basename(tsPath, '.ts').replace(/\.form$/, '') + '.json');
+  const jsonPath = path.resolve('dist', path.basename(tsPath).replace(/\.tsx?$/, '').replace(/\.form$/, '') + '.json');
   fs.writeFileSync(jsonPath, JSON.stringify(form, null, 2));
 
   console.log(`[foxc] ${tsPath}`);

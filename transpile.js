@@ -1189,6 +1189,8 @@ function loadProgram(entry) {
   // file mas nunca e emitido — compile() so percorre o arquivo de entrada.
   const globals = path.join(__dirname, 'globals.d.ts');
   const roots = require('fs').existsSync(globals) ? [globals, abs] : [abs];
+  // NOTA: o tsconfig.json da raiz ESPELHA estas opções (só para o editor/tsc);
+  // qualquer mudança aqui deve ser replicada lá (ler o tsconfig = melhoria futura).
   const program = ts.createProgram(roots, {
     strict: true,
     noEmit: true,
@@ -1205,11 +1207,18 @@ function loadProgram(entry) {
   });
   const sf = program.getSourceFile(abs);
   if (!sf) throw new Error(`arquivo nao encontrado: ${entry}`);
-  const diags = ts.getPreEmitDiagnostics(program).filter((d) => d.file === sf);
+  // reporta erros de TODOS os arquivos do programa (entry + imports), nao so do
+  // entry — um model/servico importado com erro de tipo nao pode passar batido.
+  // Exclui libs do TS, node_modules e o globals.d.ts (ambiente, nunca emitido).
+  const diags = ts.getPreEmitDiagnostics(program).filter((d) => d.file
+    && !program.isSourceFileDefaultLibrary(d.file)
+    && !/node_modules/.test(d.file.fileName)
+    && path.resolve(d.file.fileName).toLowerCase() !== globals.toLowerCase());
   if (diags.length) {
     const msg = diags.map((d) => {
       const p = d.file.getLineAndCharacterOfPosition(d.start);
-      return `  linha ${p.line + 1}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`;
+      const rel = path.relative(process.cwd(), d.file.fileName) || d.file.fileName;
+      return `  ${rel}:${p.line + 1}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`;
     }).join('\n');
     throw new Error(`[foxts] erros de tipagem TypeScript:\n${msg}`);
   }

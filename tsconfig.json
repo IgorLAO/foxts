@@ -1,0 +1,26 @@
+{
+  // Espelha as opções injetadas por código no loadProgram (transpile.js).
+  // Serve só para o EDITOR (IntelliSense, JSX, decorators, @vfp/core) e para
+  // `npx tsc --noEmit -p .` — o build NÃO lê este arquivo. Manter em sincronia.
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "experimentalDecorators": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["es2020"],
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": { "@vfp/core": ["decorators"] },
+    "types": []
+  },
+  "include": [
+    "globals.d.ts",
+    "decorators.ts",
+    "fox.ts",
+    "db.ts",
+    "examples/**/*",
+    "showcase/**/*"
+  ]
+}

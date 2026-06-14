@@ -105,11 +105,15 @@ export function main(): void {
 }
 `;
 
+// jsx preserve (o template gera .form.tsx) + globals.d.ts do foxts (console.log e
+// namespace JSX p/ o editor). Caminho absoluto: convencao atual do scaffold (divida conhecida).
 const tplTsconfig = JSON.stringify({
   compilerOptions: {
     target: 'ES2020', module: 'CommonJS', strict: true, experimentalDecorators: true,
+    jsx: 'preserve', lib: ['ES2020'], // sem DOM: console vem do globals.d.ts (como no loadProgram)
     moduleResolution: 'Node', baseUrl: '.', paths: { '@vfp/core': [CORE.replace(/\.ts$/, '')] },
   },
+  files: [path.join(__dirname, 'globals.d.ts')],
   include: ['src'],
 }, null, 2) + '\n';
 
@@ -120,6 +124,7 @@ const tplPkg = (name) => JSON.stringify({
   scripts: {
     build: `node ${JSON.stringify(SELF)} build`,
     watch: `node ${JSON.stringify(SELF)} watch`,
+    dev: `node ${JSON.stringify(SELF)} watch`, // alias (memoria muscular React)
     run: `node ${JSON.stringify(SELF)} run`,
     clean: `node ${JSON.stringify(SELF)} clean`,
     'create:form': `node ${JSON.stringify(SELF)} generate form`,
@@ -211,6 +216,44 @@ function writeManifest(irs, outDir) {
 // nome do PRG a partir do .ts (sem .form). Cliente.ts -> Cliente.prg
 const prgName = (f) => pascal(path.basename(f).replace(/\.(form\.)?tsx?$/, '')) + '.prg';
 
+// forms do projeto (.form.ts / .form.tsx) em src/forms
+const formFiles = (src) =>
+  [...listFiles(path.join(src, 'forms'), '.form.ts'), ...listFiles(path.join(src, 'forms'), '.form.tsx')];
+
+// pre-passe: mapa global de rotas (@Route -> nome do form), montado por um parser
+// sintatico barato antes do transpile completo. Resolve router.open("rota") em build.
+const collectRoutes = (forms) => {
+  const routes = {};
+  for (const f of forms) { const r = collectRoute(f); if (r) routes[r.route] = r.name; }
+  return routes;
+};
+
+// manifesto de forms + routes.json a partir das IRs (reusado pelo watch incremental)
+function writeFormsMeta(out, irs, routes) {
+  if (!irs.length) return;
+  const man = writeManifest(irs, path.join(out, 'forms'));
+  const deps = Object.values(man).reduce((a, d) => a + d.length, 0);
+  log(`manifesto: ${irs.length} forms, ${deps} dependências -> forms/forms.manifest.json`);
+  if (Object.keys(routes).length) {
+    fs.writeFileSync(path.join(out, 'routes.json'), JSON.stringify({ routes }, null, 2));
+    log(`rotas: ${Object.keys(routes).length} -> routes.json`);
+  }
+}
+
+// remove de dist/forms os .scx/.sct/.json cujo form (ir.name) nao saiu deste build
+// (form deletado/renomeado em src/). So roda apos build COMPLETO bem-sucedido.
+function pruneOrphanForms(formsDir, irs) {
+  if (!fs.existsSync(formsDir)) return;
+  const keep = new Set(irs.map((ir) => String(ir.name).toLowerCase()));
+  for (const f of fs.readdirSync(formsDir)) {
+    const m = /^(.+)\.(scx|sct|json)$/i.exec(f);
+    if (!m || f.toLowerCase() === 'forms.manifest.json' || keep.has(m[1].toLowerCase())) continue;
+    fs.rmSync(path.join(formsDir, f), { force: true });
+    log(`  órfão removido: forms/${f}`);
+  }
+}
+
+// build completo. Devolve o estado (cache fonte->IR, rotas) reusado pelo watch incremental.
 async function cmdBuild(root) {
   const cfg = loadConfig(root);
   const src = path.join(root, cfg.srcDir);
@@ -221,15 +264,12 @@ async function cmdBuild(root) {
   const msgFile = path.join(root, 'vfp.messages.json');
   if (fs.existsSync(msgFile)) setMessages(JSON.parse(fs.readFileSync(msgFile, 'utf8')));
   log(`build ${path.relative(process.cwd(), root || '.')} (layout: ${layout.engine()})`);
-  let scx = 0;
-  const irs = [], prgs = [];
+  const irs = new Map(); // fonte -> IR (cache p/ rebuild incremental no watch)
+  const prgs = [];
   // UI Compiler: forms (.form.ts / .form.tsx) -> SCX/SCT
-  const forms = [...listFiles(path.join(src, 'forms'), '.form.ts'), ...listFiles(path.join(src, 'forms'), '.form.tsx')];
-  // pre-passe: mapa global de rotas (@Route -> nome do form), montado por um parser
-  // sintatico barato antes do transpile completo. Resolve router.open("rota") em build.
-  const routes = {};
-  for (const f of forms) { const r = collectRoute(f); if (r) routes[r.route] = r.name; }
-  for (const f of forms) { irs.push(buildForm(f, path.join(out, 'forms'), routes)); scx++; }
+  const forms = formFiles(src);
+  const routes = collectRoutes(forms);
+  for (const f of forms) irs.set(f, buildForm(f, path.join(out, 'forms'), routes));
   // Logic Compiler: services / models / classes -> PRG
   const menus = []; // nomes de menu() encontrados -> DO <nome> no app.prg
   for (const sub of ['services', 'models', 'classes']) {
@@ -242,19 +282,13 @@ async function cmdBuild(root) {
   const hasMain = fs.existsSync(mainTs);
   if (hasMain) { const o = path.join(out, 'main.prg'); buildPrg(mainTs, o, 'main   ', routes); prgs.push(o); }
   if (menus.length) log(`menu: ${menus.join(', ')} -> DO no app.prg`);
+  const irList = [...irs.values()];
   writeBootstrap(out, prgs, hasMain, cfg.entry, menus); // app.prg: linka PRGs + SET PATH + DO menu + main()/entry
-  if (hasMain || cfg.entry) writeProjectManifest(out, path.basename(root), prgs, irs); // vfp.json p/ `vfp pack`
-  if (irs.length) {
-    const man = writeManifest(irs, path.join(out, 'forms'));
-    const deps = Object.values(man).reduce((a, d) => a + d.length, 0);
-    log(`manifesto: ${irs.length} forms, ${deps} dependências -> forms/forms.manifest.json`);
-    // mapa de rotas (@Route -> nome do form), ja montado no pre-passe acima
-    if (Object.keys(routes).length) {
-      fs.writeFileSync(path.join(out, 'routes.json'), JSON.stringify({ routes }, null, 2));
-      log(`rotas: ${Object.keys(routes).length} -> routes.json`);
-    }
-  }
-  log(`build OK: ${scx} SCX (UI) + ${prgs.length} PRG (lógica) -> ${path.relative(process.cwd(), out)}`);
+  if (hasMain || cfg.entry) writeProjectManifest(out, path.basename(root), prgs, irList); // vfp.json p/ `vfp pack`
+  writeFormsMeta(out, irList, routes);
+  pruneOrphanForms(path.join(out, 'forms'), irList); // dist espelha src (só no build completo)
+  log(`build OK: ${irs.size} SCX (UI) + ${prgs.length} PRG (lógica) -> ${path.relative(process.cwd(), out)}`);
+  return { cfg, src, out, routes, irs };
 }
 
 // writeBootstrap: dist/app.prg que linka todos os PRGs (SET PROCEDURE) e a pasta de
@@ -308,13 +342,47 @@ async function cmdRun(root) {
 
 function cmdWatch(root) {
   const src = path.join(root, loadConfig(root).srcDir);
-  const safe = () => { cmdBuild(root).catch((e) => console.error('[vfp] build falhou:', e.message)); };
-  safe();
+  let state = null; // estado do ultimo build COMPLETO ok (cache fonte->IR)
+  const full = () => cmdBuild(root)
+    .then((s) => { state = s; })
+    .catch((e) => { state = null; console.error('[vfp] build falhou:', e.message); });
+  // incremental conservador: so quando mudou UM .form.ts(x) ja conhecido do ultimo
+  // build completo. Refaz o pre-passe de rotas (barato, sintatico), rebuilda so aquele
+  // form e regrava manifesto/routes.json do cache; app.prg nao muda nesse caminho
+  // (depende so de PRGs/menus). Qualquer duvida ou erro -> build completo.
+  const incremental = (file) => Promise.resolve().then(() => {
+    log(`watch: ${path.basename(file)} -> rebuild incremental`);
+    const routes = collectRoutes(formFiles(src));
+    state.irs.set(file, buildForm(file, path.join(state.out, 'forms'), routes));
+    state.routes = routes;
+    writeFormsMeta(state.out, [...state.irs.values()], routes);
+  }).catch((e) => { console.error('[vfp] incremental falhou:', e.message); return full(); });
+  let t = null, busy = false, needFull = true; const changed = new Set();
+  const flush = async () => {
+    if (busy) return schedule(); // build em curso: tenta de novo no proximo tick
+    busy = true;
+    const files = [...changed]; changed.clear();
+    const doFull = needFull || !state || files.length !== 1; needFull = false;
+    try { await (doFull ? full() : incremental(files[0])); } finally { busy = false; }
+  };
+  const schedule = () => { clearTimeout(t); t = setTimeout(flush, 150); };
+  flush(); // primeiro build: sempre completo
   log('watch: observando ' + path.relative(process.cwd(), src) + ' (Ctrl+C para sair)');
-  let t = null;
-  fs.watch(src, { recursive: true }, (_ev, f) => {
-    if (f && !/\.ts$/.test(f)) return;
-    clearTimeout(t); t = setTimeout(safe, 150);
+  fs.watch(src, { recursive: true }, (ev, f) => {
+    if (f && !/\.tsx?$/i.test(f)) return; // .ts e .tsx (antes o filtro deixava .tsx de fora)
+    const abs = f ? path.join(src, f) : null;
+    // 'change' num .form.ts(x) ja no cache e ainda existente -> candidato a incremental;
+    // resto (logica/main, criado/removido/renomeado, evento sem nome) -> completo.
+    if (ev === 'change' && abs && /\.form\.tsx?$/i.test(abs) && state && state.irs.has(abs) && fs.existsSync(abs)) changed.add(abs);
+    else needFull = true;
+    schedule();
+  });
+  // raiz: vfp.config/theme/messages.json (fora de src/) tambem disparam rebuild COMPLETO.
+  // Limitacao: setTheme/setMessages so fazem MERGE (transpile.js nao expoe reset/default),
+  // entao chave REMOVIDA do json mantem o valor antigo ate reiniciar o watch.
+  fs.watch(root, (_ev, f) => {
+    if (!f || !/^vfp\.(config|theme|messages)\.json$/i.test(f)) return;
+    needFull = true; schedule();
   });
 }
 
