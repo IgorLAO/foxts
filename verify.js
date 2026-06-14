@@ -9,7 +9,7 @@ const { execFileSync } = require('child_process');
 const ts = require('typescript');
 const { transpile } = require('./transpile');
 
-const FOXCLI = 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 const SRC = path.resolve('examples/calc.ts');
 const PRG = path.resolve('dist/calc.prg');
 const DRV = path.resolve('dist/_driver.prg');

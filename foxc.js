@@ -16,7 +16,7 @@ const { execFileSync } = require('child_process');
 const ts = require('typescript');
 const { analyze, transpileForm, methodBodyText, finalizeFormIR } = require('./transpile');
 
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 
 function emitJs(tsRel, outRel) {
   const js = ts.transpileModule(fs.readFileSync(tsRel, 'utf8'), {
