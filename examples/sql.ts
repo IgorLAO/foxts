@@ -31,3 +31,21 @@ export function inserirCliente(nome: string, uf: string): number {
   }
   return r;
 }
+
+// Frente D — transação SQL Server: dois INSERTs atômicos. Modo manual
+// (setProp Transactions=2), begin/commit, rollback no erro. SQLGETPROP lê
+// o modo de transação corrente.
+export function transferir(nome: string, uf: string): number {
+  const db = sqlConnect(CONN);
+  db.setProp("Transactions", 2); // DB_TRANSMANUAL
+  const modo: number = db.getProp("Transactions");
+  db.begin();
+  let r: number = db.exec("INSERT INTO clientes (nome, uf) VALUES (?nome, ?uf)");
+  if (r >= 0) {
+    db.commit();
+  } else {
+    db.rollback();
+  }
+  db.disconnect();
+  return modo;
+}
