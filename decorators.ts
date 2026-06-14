@@ -11,19 +11,72 @@
 type Cfg = Record<string, any>;
 type Deco = (target: any, key?: any, desc?: any) => any;
 
+// ───────────────────────────────────────────────────────────────────────────
+// Tipagem JSX (DX) — abordagem: COMPONENTES TIPADOS (FC<Props>) com dual-use.
+//
+// Cada tag de controle/layout é exportada como uma `DualTag<Props>`: uma interface
+// callable com DUAS assinaturas de chamada — a 1ª como FÁBRICA DE DECORATOR
+// (`@TextBox({...})`), a 2ª como TAG JSX (`<TextBox .../>`). AS DUAS usam o MESMO
+// `Props` tipado, então um atributo errado (`widht`, `hraeder`) é rejeitado nas DUAS
+// posições (decorator e JSX). A ordem importa: a assinatura de decorator vem 1ª p/
+// `@Tag({...})` resolver pra ela; o JSX resolve props pela 2ª (TSX checa props de
+// uma tag capitalizada contra a assinatura de chamada do valor importado).
+//
+// Não usamos `JSX.IntrinsicElements` nominal porque todas as tags daqui são
+// IMPORTADAS e CAPITALIZADAS — em TSX, tags capitalizadas resolvem pelo VALOR
+// importado (este `DualTag`), nunca pelo mapa de IntrinsicElements (esse só rege
+// tags minúsculas). Os `Props` abaixo derivam dos atributos que o transpile.js
+// realmente consome (readJsxAttrs/applyStyle/controlLeaf/gridLeaf/...).
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Tag de uso duplo: fábrica de decorator (1ª) + componente JSX tipado (2ª). */
+export interface DualTag<P extends object = {}> {
+  (cfg?: P): Deco;        // @Tag({...})  — caminho decorator
+  (props: P): JSX.Element; // <Tag .../>   — caminho JSX (checa os props)
+}
+
+/** Estilo/utilitários comuns a todo controle visual (applyStyle/applyClass). */
+export interface StyleProps {
+  variant?: string;    // -> BackColor (paleta do tema) + ForeColor branco
+  color?: string;      // -> BackColor
+  textColor?: string;  // -> ForeColor
+  disabled?: boolean;  // -> Enabled = .F.
+  bold?: boolean;      // -> FontBold = .T.
+  class?: string;      // utilitários "w-120 h-30 primary bg-red text-white bold disabled"
+}
+
+/** Posição/tamanho de um item dentro do layout flex (e config de decorator). */
+export interface FlexItemProps {
+  width?: number;
+  height?: number;
+  top?: number;        // usado no caminho decorator (@Label({ top, left }))
+  left?: number;
+  grow?: number | boolean; // estica no eixo principal (flex-grow)
+  flexGrow?: number;
+  alignSelf?: "start" | "center" | "end" | "stretch"; // sobrepõe o align do pai
+}
+
+/** Props de um controle simples (Label/TextBox/Button/...) como tag/decorator. */
+export interface ControlProps extends StyleProps, FlexItemProps {
+  name?: string;       // nome do controle no SCX (senão derivado de bind/contador)
+  bind?: string;       // -> ControlSource = "ThisForm.<bind>" (cria o membro)
+  caption?: string;
+  onClick?: string;    // nome de método do form -> ThisForm.<m>()
+  props?: Record<string, string | number | boolean>; // props VFP cruas (RHS verbatim)
+}
+
 export function Form(_cfg: Cfg): ClassDecorator { return () => {}; }
-export function Label(_cfg?: Cfg): Deco { return () => {}; }
-export function TextBox(_cfg?: Cfg): Deco { return () => {}; }
-export function EditBox(_cfg?: Cfg): Deco { return () => {}; }
-export function Button(_cfg?: Cfg): Deco { return () => {}; }
-export function CommandButton(_cfg?: Cfg): Deco { return () => {}; }
-export function CheckBox(_cfg?: Cfg): Deco { return () => {}; }
-export function ComboBox(_cfg?: Cfg): Deco { return () => {}; }
-export function Grid(_cfg?: Cfg): Deco { return () => {}; }
-export function Timer(_cfg?: Cfg): Deco { return () => {}; }
-export function Shape(_cfg?: Cfg): Deco { return () => {}; }
-export function Image(_cfg?: Cfg): Deco { return () => {}; }
-export function OptionGroup(_cfg?: Cfg): Deco { return () => {}; }
+export const Label: DualTag<ControlProps> = (() => () => {}) as any;
+export const TextBox: DualTag<ControlProps> = (() => () => {}) as any;
+export const EditBox: DualTag<ControlProps> = (() => () => {}) as any;
+export const Button: DualTag<ControlProps> = (() => () => {}) as any;
+export const CommandButton: DualTag<ControlProps> = (() => () => {}) as any;
+export const CheckBox: DualTag<ControlProps> = (() => () => {}) as any;
+export const ComboBox: DualTag<ControlProps> = (() => () => {}) as any;
+export const Timer: DualTag<ControlProps> = (() => () => {}) as any;
+export const Shape: DualTag<ControlProps> = (() => () => {}) as any;
+export const Image: DualTag<ControlProps> = (() => () => {}) as any;
+export const OptionGroup: DualTag<ControlProps> = (() => () => {}) as any;
 
 // FormManager — navegação entre forms. O transpilador converte estas chamadas em
 // comandos nativos do VFP (em runtime são no-ops, só para tipagem/oráculo):
@@ -108,16 +161,100 @@ export function pad(_prompt: string, _bars: MenuItem[]): MenuPad { return null a
 export function bar(_prompt: string, _action?: string | Function): MenuItem { return null as any; }
 export function separator(): MenuItem { return null as any; }
 
+// ───────────────────────────────────────────────────────────────────────────
 // tags JSX de layout/composição (usadas em render(); resolvidas em build-time).
-// Tipadas como `any` para serem componentes JSX válidos sem runtime React.
-export const Column: any = () => {};
-export const Row: any = () => {};
-export const View: any = () => {};
-export const Container: any = () => {}; // <Container>/<Panel>: agrupa filhos num controle container (PARENT aninhado)
-export const Panel: any = () => {};
-export const PageFrame: any = () => {}; // <PageFrame> com <Page caption>: pageframe nativo (páginas reais)
-export const Page: any = () => {};
-export const GridColumn: any = () => {}; // <GridColumn header field width> dentro de <Grid>: coluna real do VFP
-export const Fragment: any = () => {};
-export const OpenFormButton: any = () => {};
-export const SaveButton: any = () => {};
+// Agora TIPADAS (FC<Props>) p/ o JSX ficar type-safe no editor — typos de atributo
+// (`widht`, `justfy`, `hraeder`) viram erro de compilação, sem perder o uso como
+// tag JSX. Os Props derivam dos atributos que parseJsx/gridLeaf/containerLeaf
+// consomem em transpile.js. `children` é opcional (o foxts lê os filhos da AST).
+// ───────────────────────────────────────────────────────────────────────────
+
+type FC<P extends object = {}> = (props: P) => JSX.Element;
+
+/** alinhamento no eixo principal (justify) / cruzado (align) de um box flex. */
+type Justify = "start" | "center" | "end" | "between" | "around" | "evenly";
+type Align = "start" | "center" | "end" | "stretch";
+
+/** <Column>/<Row>/<View>: caixa flex resolvida em layout no build. */
+export interface BoxProps extends FlexItemProps {
+  gap?: number;
+  padding?: number;
+  pad?: number;
+  justify?: Justify;     // eixo principal
+  align?: Align;         // eixo cruzado
+  wrap?: boolean;        // flex-wrap (requer width/height fixo)
+  flexWrap?: "wrap" | "nowrap";
+  flexDirection?: "row" | "column"; // só <View> usa p/ escolher a direção
+  children?: any;
+}
+
+export const Column: FC<BoxProps> = (() => {}) as any;
+export const Row: FC<BoxProps> = (() => {}) as any;
+export const View: FC<BoxProps> = (() => {}) as any;
+export const Fragment: FC<{ children?: any }> = (() => {}) as any;
+
+/** <Container>/<Panel>: controle `container` do VFP com filhos aninhados (PARENT). */
+export interface ContainerProps extends StyleProps, FlexItemProps {
+  name?: string;
+  gap?: number;
+  padding?: number;
+  pad?: number;
+  justify?: Justify;
+  align?: Align;
+  flexDirection?: "row" | "column";
+  children?: any;
+}
+export const Container: FC<ContainerProps> = (() => {}) as any;
+export const Panel: FC<ContainerProps> = (() => {}) as any;
+
+/** <PageFrame>: pageframe nativo; só aceita <Page> como filho direto. */
+export interface PageFrameProps extends StyleProps, FlexItemProps {
+  name?: string;
+  children?: any;
+}
+export const PageFrame: FC<PageFrameProps> = (() => {}) as any;
+
+/** <Page caption>: uma aba do pageframe (PageCount + PageN.Caption). */
+export interface PageProps {
+  caption?: string;
+  gap?: number;
+  padding?: number;
+  pad?: number;
+  flexDirection?: "row" | "column";
+  children?: any;
+}
+export const Page: FC<PageProps> = (() => {}) as any;
+
+/** <Grid source><GridColumn/></Grid>: grid com colunas reais ligado a um cursor. */
+export interface GridProps extends StyleProps, FlexItemProps {
+  name?: string;
+  source?: string;        // alias do cursor -> RecordSource (RecordSourceType=1)
+  recordSource?: string;  // sinônimo de source
+  children?: any;
+}
+export const Grid: FC<GridProps> = (() => {}) as any;
+
+/** <GridColumn header field width>: uma coluna real (ColumnN.ControlSource/Width). */
+export interface GridColumnProps {
+  header?: string;        // caption do header (reaplicado no Init pós-vinculação)
+  field?: string;         // campo do cursor -> ColumnN.ControlSource
+  bind?: string;          // sinônimo de field
+  width?: number;
+}
+export const GridColumn: FC<GridColumnProps> = (() => {}) as any;
+
+/** <OpenFormButton form={X}>: botão que faz DO FORM X [WITH ...].
+ *  Atributos extras (além dos conhecidos) viram os parâmetros do WITH, por isso
+ *  a index signature permissiva — mas os atributos conhecidos continuam tipados. */
+export interface OpenFormButtonProps extends StyleProps, FlexItemProps {
+  form: unknown;          // classe do form de destino (obrigatório)
+  caption?: string;
+  [param: string]: unknown; // parâmetros extras -> WITH (clienteId={...}, etc.)
+}
+export const OpenFormButton: FC<OpenFormButtonProps> = (() => {}) as any;
+
+/** <SaveButton caption variant>: botão "Salvar" pronto (ou @Component próprio). */
+export interface SaveButtonProps extends StyleProps, FlexItemProps {
+  caption?: string;
+}
+export const SaveButton: FC<SaveButtonProps> = (() => {}) as any;

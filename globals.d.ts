@@ -9,12 +9,16 @@ declare const console: {
   error(...args: any[]): void;
 };
 
-// JSX permissivo: o foxts lê a árvore JSX estruturalmente (não há React em runtime).
-// Element = {} faz qualquer componente (mesmo os factories de decorator) ser aceito.
+// JSX type-safe: o foxts lê a árvore JSX estruturalmente (não há React em runtime),
+// mas a tipagem serve ao EDITOR/tsc. As tags reais (Column/TextBox/Grid/...) são
+// IMPORTADAS e CAPITALIZADAS, então são checadas pelo VALOR importado (DualTag/FC
+// tipados em decorators.ts), NÃO por este mapa. `IntrinsicElements` rege só tags
+// minúsculas — que o framework não usa; deixá-lo vazio faz qualquer `<div>`/`<foo>`
+// (typo de tag) virar erro, em vez de passar como `any`.
 declare namespace JSX {
   interface Element {}
   interface ElementClass {}
-  interface IntrinsicElements {
-    [elemName: string]: any;
-  }
+  // a prop que carrega os filhos de um componente (habilita `children` nos Props).
+  interface ElementChildrenAttribute { children: {}; }
+  interface IntrinsicElements {}
 }
