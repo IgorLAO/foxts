@@ -1,12 +1,52 @@
 {
   "name": "foxts",
   "version": "0.1.0",
-  "private": true,
-  "description": "Transpilador de um subconjunto tipado de TypeScript para Visual FoxPro 9 (PRG). Compila em build-time; nao ha runtime JS no app gerado.",
+  "description": "Transpilador de um subconjunto tipado de TypeScript para Visual FoxPro 9 (PRG/SCX). Compila em build-time; nao ha runtime JS no app gerado.",
   "type": "commonjs",
+  "license": "MIT",
+  "author": "Igor Leonardo <igor.leonardo@pwi.com.br>",
+  "homepage": "https://github.com/IgorLAO/foxts#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IgorLAO/foxts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IgorLAO/foxts/issues"
+  },
+  "keywords": [
+    "foxpro",
+    "visual-foxpro",
+    "vfp",
+    "vfp9",
+    "transpiler",
+    "typescript",
+    "prg",
+    "scx",
+    "codegen",
+    "compiler"
+  ],
+  "main": "transpile.js",
   "bin": {
     "foxts": "cli.js",
+    "foxc": "foxc.js",
     "vfp": "vfp.js"
+  },
+  "files": [
+    "cli.js",
+    "foxc.js",
+    "vfp.js",
+    "transpile.js",
+    "layout.js",
+    "foxcli-path.js",
+    "decorators.ts",
+    "globals.d.ts",
+    "fox.ts",
+    "db.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "build": "node cli.js examples/calc.ts -o dist/calc.prg",
