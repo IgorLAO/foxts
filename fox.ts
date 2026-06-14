@@ -69,12 +69,19 @@ class BaseControl {
   constructor(public config: ControlConfig = {}) {}
 }
 
+// Os controles que carregam VALOR são GENÉRICOS no tipo do valor: `new TextBox<number>()`
+// faz `txt.value = "x"` virar ERRO de compilação (em VFP isso é erro de RUNTIME num
+// campo N). O `value: T` sobrepõe o index signature `[k]: any` SÓ p/ a chave `value`,
+// então outras props VFP continuam livres. Default `T = string | number | Date | boolean`
+// (os tipos que um campo VFP pode conter) preserva os usos atuais sem anotação.
+type FieldValue = string | number | Date | boolean;
+
 export class Label extends BaseControl { caption: string = ""; forecolor: number = 0; }
-export class TextBox extends BaseControl { value: any = null; }
+export class TextBox<T extends FieldValue = FieldValue> extends BaseControl { value: T = null as any; }
 export class EditBox extends BaseControl { value: string = ""; }
 export class CommandButton extends BaseControl { caption: string = ""; }
 export class CheckBox extends BaseControl { value: boolean = false; caption: string = ""; }
-export class ComboBox extends BaseControl { value: any = null; rowSource: string = ""; }
+export class ComboBox<T extends FieldValue = FieldValue> extends BaseControl { value: T = null as any; rowSource: string = ""; }
 export class Grid extends BaseControl { recordSource: string = ""; readOnly: boolean = false; columnCount: number = -1; }
 export class Timer extends BaseControl { interval: number = 0; }
 export class Shape extends BaseControl {}

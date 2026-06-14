@@ -22,9 +22,9 @@ export default class frmDiasClass extends Form {
 
   // controles como campos TIPADOS — `this.<nome>` autocompleta nos métodos
   lblIni = new Label({ top: 12, left: 16, caption: "Data inicial", props: { AutoSize: ".T." } });
-  txtIni = new TextBox({ top: 32, left: 16, width: 110, height: 24, props: { Value: "{}" } });
+  txtIni = new TextBox<DateF>({ top: 32, left: 16, width: 110, height: 24, props: { Value: "{}" } });
   lblFim = new Label({ top: 12, left: 150, caption: "Data final", props: { AutoSize: ".T." } });
-  txtFim = new TextBox({ top: 32, left: 150, width: 110, height: 24, props: { Value: "{}" } });
+  txtFim = new TextBox<DateF>({ top: 32, left: 150, width: 110, height: 24, props: { Value: "{}" } });
   cmdGerar = new CommandButton({ top: 30, left: 284, width: 80, height: 27, caption: "Gerar", onClick: "Gerar" });
   grdDias = new Grid({ top: 70, left: 16, width: 438, height: 340, props: { ColumnCount: -1, ReadOnly: ".T.", DeleteMark: ".F." } });
 
