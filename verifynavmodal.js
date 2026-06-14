@@ -26,7 +26,7 @@ const { execFileSync } = require('child_process');
 const layout = require('./layout');
 const { transpileForm, transpile, finalizeFormIR } = require('./transpile');
 
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 
 // ---- fixture de forms --------------------------------------------------------
 // Usamos um diretório temporário para os arquivos .tsx gerados on-the-fly.

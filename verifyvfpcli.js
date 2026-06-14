@@ -11,7 +11,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT   = __dirname;
 const VFP    = path.join(ROOT, 'vfp.js');
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 
 // --- helpers ------------------------------------------------------------------
 
