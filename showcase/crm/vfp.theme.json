@@ -1,0 +1,9 @@
+{
+  "colors": {
+    "primary": "#7c3aed",
+    "success": "#059669",
+    "danger": "#e11d48",
+    "warning": "#d97706",
+    "white": "#ffffff"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "srcDir": "src",
+  "outDir": "dist",
+  "main": "src/main.ts",
+  "entry": "DashboardForm"
+}

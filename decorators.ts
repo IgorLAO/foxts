@@ -37,12 +37,20 @@ export interface DualTag<P extends object = {}> {
 
 /** Estilo/utilitários comuns a todo controle visual (applyStyle/applyClass). */
 export interface StyleProps {
-  variant?: string;    // -> BackColor (paleta do tema) + ForeColor branco
-  color?: string;      // -> BackColor
-  textColor?: string;  // -> ForeColor
+  variant?: string;    // -> BackColor (paleta do tema OU hex "#1e293b") + ForeColor branco
+  color?: string;      // -> BackColor (nome do tema ou hex)
+  textColor?: string;  // -> ForeColor (nome do tema ou hex)
   disabled?: boolean;  // -> Enabled = .F.
   bold?: boolean;      // -> FontBold = .T.
-  class?: string;      // utilitários "w-120 h-30 primary bg-red text-white bold disabled"
+  italic?: boolean;    // -> FontItalic = .T.
+  transparent?: boolean; // -> BackStyle = 0 (fundo transparente; Label/Shape/Container)
+  rounded?: number;    // -> Curvature 0-90 (cantos arredondados; Shape/Container)
+  borderColor?: string; // -> BorderColor (Shape/Container)
+  borderWidth?: number; // -> BorderWidth (Shape/Container)
+  fontSize?: number;   // -> FontSize
+  fontName?: string;   // -> FontName ("Segoe UI")
+  textAlign?: "left" | "center" | "right" | "auto"; // -> Alignment (alinhamento do texto)
+  class?: string;      // utilitários "w-120 h-30 t-18 primary bg-red text-white text-center bold italic"
 }
 
 /** Posição/tamanho de um item dentro do layout flex (e config de decorator). */
@@ -61,7 +69,18 @@ export interface ControlProps extends StyleProps, FlexItemProps {
   name?: string;       // nome do controle no SCX (senão derivado de bind/contador)
   bind?: string;       // -> ControlSource = "ThisForm.<bind>" (cria o membro)
   caption?: string;
-  onClick?: string;    // nome de método do form -> ThisForm.<m>()
+  value?: string | number; // valor inicial (-> Value)
+  interval?: number;   // Timer: intervalo em ms (-> Interval)
+  // eventos: o valor é o nome de um método do form -> ThisForm.<metodo>() no evento.
+  onClick?: string;
+  onDblClick?: string;
+  onInit?: string;
+  onTimer?: string;            // Timer.Timer (animação por tick)
+  onInteractiveChange?: string;
+  onGotFocus?: string;
+  onLostFocus?: string;
+  onMouseEnter?: string;
+  onMouseLeave?: string;
   props?: Record<string, string | number | boolean>; // props VFP cruas (RHS verbatim)
 }
 
@@ -108,6 +127,9 @@ export class FoxForm {
   caption: string = "";
   width: number = 400;
   height: number = 300;
+  // acesso dinamico aos controles em metodos: this.shpBar.width, this.tmr.enabled, ...
+  // (os controles vem do render()/JSX, nao sao campos declarados — o index libera o uso).
+  [key: string]: any;
 }
 
 // decorators de framework (lidos pelo compilador; no-ops em runtime)
