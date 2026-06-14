@@ -191,5 +191,87 @@ const money = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
     fs.writeFileSync(OUT('04_item.png'), cv.toBuffer('image/png'));
   }
 
-  console.log('OK telas: 01_home 02_modo 03_produtos 04_item');
+  // ---------- 05 CARRINHO ----------
+  {
+    const cv = createCanvas(W, H), ctx = cv.getContext('2d');
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    header(ctx, logo132, 'Meu carrinho', true);
+    const lines = [
+      ['X-Burger', '+ Bacon, Cebola caramelizada', 1, 31.90],
+      ['Batata Frita', '', 1, 14.90],
+      ['Refrigerante', 'Lata 350ml', 1, 8.90],
+    ];
+    let y = 170;
+    lines.forEach((l) => {
+      shadowCard(ctx, 28, y, W - 56, 120, 16, C.card);
+      imgContain(ctx, prod, 46, y + 18, 84, 84);
+      text(ctx, l[0], 152, y + 50, 'bold 28px "Segoe UI"', C.font, 'left');
+      if (l[1]) text(ctx, l[1], 152, y + 84, '20px "Segoe UI"', C.grey, 'left');
+      text(ctx, 'x' + l[2], W - 250, y + 70, '24px "Segoe UI"', C.grey, 'left');
+      text(ctx, money(l[3]), W - 180, y + 70, 'bold 26px "Segoe UI"', C.primary, 'left');
+      y += 136;
+    });
+    text(ctx, 'Subtotal', 40, y + 36, '24px "Segoe UI"', C.grey, 'left');
+    text(ctx, money(55.70), W - 40, y + 36, '24px "Segoe UI"', C.font, 'right');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, H - 130, W, 130);
+    ctx.strokeStyle = '#eee'; ctx.beginPath(); ctx.moveTo(0, H - 130); ctx.lineTo(W, H - 130); ctx.stroke();
+    text(ctx, 'Total', 40, H - 72, '26px "Segoe UI"', C.grey, 'left');
+    text(ctx, money(55.70), 40, H - 32, 'bold 34px "Segoe UI"', C.primary, 'left');
+    pill(ctx, W - 300, H - 104, 260, 78, C.primary, '#fff', 'Pagar', 'bold 32px "Segoe UI"');
+    fs.writeFileSync(OUT('05_carrinho.png'), cv.toBuffer('image/png'));
+  }
+
+  // ---------- 06 PAGAMENTO (escolher metodo) ----------
+  {
+    const cv = createCanvas(W, H), ctx = cv.getContext('2d');
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    header(ctx, logo132, 'Pagamento', true);
+    text(ctx, 'Total a pagar', W / 2, 230, '30px "Segoe UI"', C.grey, 'center');
+    text(ctx, money(55.70), W / 2, 310, 'bold 76px "Segoe UI"', C.font, 'center');
+    text(ctx, 'Como deseja pagar?', W / 2, 410, 'bold 34px "Segoe UI"', C.font, 'center');
+    const methods = [['Cartao de credito', C.secondary], ['Cartao de debito', C.secondary], ['Pix', '#16a34a']];
+    let my = 470;
+    methods.forEach((m) => {
+      shadowCard(ctx, 60, my, W - 120, 96, 16, C.card);
+      ctx.fillStyle = m[1]; rr(ctx, 90, my + 26, 60, 44, 8); ctx.fill();
+      text(ctx, m[0], 180, my + 60, 'bold 30px "Segoe UI"', C.font, 'left');
+      text(ctx, '›', W - 110, my + 66, 'bold 48px "Segoe UI"', C.grey, 'left');
+      my += 116;
+    });
+    pill(ctx, W / 2 - 150, my + 16, 300, 80, C.cancel, C.font, 'Cancelar', 'bold 28px "Segoe UI"');
+    fs.writeFileSync(OUT('06_pagamento.png'), cv.toBuffer('image/png'));
+  }
+
+  // ---------- 07 PROCESSANDO (4 frames de progresso p/ animar) ----------
+  function procFrame(pct) {
+    const cv = createCanvas(W, H), ctx = cv.getContext('2d');
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    header(ctx, logo132, '', false);
+    text(ctx, 'Processando pagamento', W / 2, 470, 'bold 42px "Segoe UI"', C.font, 'center');
+    text(ctx, 'Insira ou aproxime o cartao', W / 2, 530, '26px "Segoe UI"', C.grey, 'center');
+    const bx = 130, bw = W - 260, by = 610, bh = 24;
+    ctx.fillStyle = '#e5e7eb'; rr(ctx, bx, by, bw, bh, 12); ctx.fill();
+    ctx.fillStyle = C.primary; rr(ctx, bx, by, Math.max(bh, bw * pct), bh, 12); ctx.fill();
+    text(ctx, Math.round(pct * 100) + '%', W / 2, by + 80, 'bold 30px "Segoe UI"', C.grey, 'center');
+    return cv;
+  }
+  [0, 0.34, 0.68, 1].forEach((p, i) => fs.writeFileSync(OUT('07_proc' + i + '.png'), procFrame(p).toBuffer('image/png')));
+
+  // ---------- 08 APROVADO ----------
+  {
+    const cv = createCanvas(W, H), ctx = cv.getContext('2d');
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.arc(W / 2, 360, 110, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(W / 2 - 52, 360); ctx.lineTo(W / 2 - 12, 402); ctx.lineTo(W / 2 + 56, 318); ctx.stroke();
+    text(ctx, 'Pagamento aprovado!', W / 2, 560, 'bold 48px "Segoe UI"', C.font, 'center');
+    text(ctx, 'Retire seu pedido no balcao', W / 2, 620, '28px "Segoe UI"', C.grey, 'center');
+    shadowCard(ctx, W / 2 - 180, 680, 360, 170, 20, C.card);
+    text(ctx, 'Sua senha', W / 2, 738, '26px "Segoe UI"', C.grey, 'center');
+    text(ctx, 'A 123', W / 2, 815, 'bold 76px "Segoe UI"', C.primary, 'center');
+    pill(ctx, W / 2 - 210, 930, 420, 90, C.secondary, '#fff', 'Tocar para finalizar', 'bold 28px "Segoe UI"');
+    fs.writeFileSync(OUT('08_aprovado.png'), cv.toBuffer('image/png'));
+  }
+
+  console.log('OK telas: 01_home 02_modo 03_produtos 04_item 05_carrinho 06_pagamento 07_proc[0-3] 08_aprovado');
 })().catch((e) => { console.error('ERRO', e && e.stack || e); process.exit(1); });
