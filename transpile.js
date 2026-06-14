@@ -1650,6 +1650,9 @@ function controlLeaf(model, ctx, st) {
   }
   if (typeof a.interval === 'number') props.Interval = a.interval; // Timer: intervalo (ms)
   if (typeof a.value === 'number' || typeof a.value === 'string') props.Value = typeof a.value === 'string' ? foxString(a.value) : a.value;
+  const pic = typeof a.src === 'string' ? a.src : (typeof a.picture === 'string' ? a.picture : null);
+  if (pic) props.Picture = foxString(pic); // <Image src> -> Picture (PNG/JPG com alpha)
+  if (typeof a.stretch === 'number') props.Stretch = a.stretch; // 0=clip 1=isometrico 2=esticar
   const cls = applyStyle(props, a); // utilitários class podem definir w-/h-
   // Shape: preenchimento sólido = FillStyle 0 (Solid) + FillColor (alem do BackColor),
   // senao o interior fica transparente e so a borda aparece.

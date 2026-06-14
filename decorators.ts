@@ -71,6 +71,9 @@ export interface ControlProps extends StyleProps, FlexItemProps {
   caption?: string;
   value?: string | number; // valor inicial (-> Value)
   interval?: number;   // Timer: intervalo em ms (-> Interval)
+  src?: string;        // <Image src> -> Picture (PNG/JPG; alpha suportado)
+  picture?: string;    // sinonimo de src
+  stretch?: number;    // Image.Stretch: 0=clip, 1=isometrico, 2=esticar
   // eventos: o valor é o nome de um método do form -> ThisForm.<metodo>() no evento.
   onClick?: string;
   onDblClick?: string;
