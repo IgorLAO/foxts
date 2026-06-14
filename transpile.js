@@ -1427,27 +1427,190 @@ const NAME_PREFIX = {
 const THEME = {
   primary: '#2563eb', success: '#16a34a', danger: '#dc2626', warning: '#f59e0b',
   white: '#ffffff', black: '#000000', gray: '#6b7280', blue: '#2563eb', red: '#dc2626', green: '#16a34a',
+  // tokens semânticos do UI Kit (consumidos por <Card>/<FormField> e por variant/class).
+  // Trocar estes (via vfp.theme.json) re-estiliza o app inteiro no próximo build.
+  surface: '#ffffff',   // fundo de card/painel
+  onSurface: '#0f172a', // texto sobre surface (títulos)
+  border: '#e2e8f0',    // borda neutra de card/input
+  altRow: '#f1f5f9',    // linha alternada da grade (zebra)
+  muted: '#64748b',     // texto secundário (labels de campo)
+  onPrimary: '#ffffff', // texto sobre primary
+  bg: '#f8fafc',        // fundo do form
 };
+// fonte default do app (token de tipografia). null = não força (mantém o do VFP).
+// Definida por vfp.theme.json: { "font": "Segoe UI" } — o maior ganho visual barato.
+THEME.font = null;
 
 // setTheme: mescla cores de um vfp.theme.json do projeto (aceita { primary: "#.." }
 // ou { colors: { primary: "#.." } }). Chamado por vfp/foxc antes de transpilar.
+// Aceita também { font, mode, light:{...}, dark:{...} }: mescla a base (chaves de
+// cor no topo / em `colors`), depois o set do modo ativo (`mode`, default "light").
+// Assim um único vfp.theme.json carrega claro E escuro; trocar `mode` re-tematiza.
 function setTheme(obj) {
-  const colors = obj && obj.colors ? obj.colors : obj;
-  if (colors && typeof colors === 'object') {
-    for (const k of Object.keys(colors)) if (typeof colors[k] === 'string') THEME[k] = colors[k];
+  if (!obj || typeof obj !== 'object') return;
+  const merge = (src) => {
+    const colors = src && src.colors ? src.colors : src;
+    if (colors && typeof colors === 'object') {
+      for (const k of Object.keys(colors)) {
+        if (k === 'colors' || k === 'light' || k === 'dark' || k === 'mode' || k === 'font') continue;
+        if (typeof colors[k] === 'string') THEME[k] = colors[k];
+      }
+    }
+  };
+  if (typeof obj.font === 'string') THEME.font = obj.font;
+  // tipografia em 3 papéis (como o FLAT: título/conteúdo/dados). font = fallback.
+  for (const k of ['fontTitle', 'fontBody', 'fontData']) if (typeof obj[k] === 'string') THEME[k] = obj[k];
+  if (typeof obj.win11 === 'boolean') THEME.win11 = obj.win11; // chrome DWM (opt-in)
+  if (typeof obj.flat === 'boolean') THEME.flat = obj.flat;   // modo flat (chrome custom)
+  merge(obj); // base (cores no topo / em colors)
+  const mode = obj.mode === 'dark' ? 'dark' : (obj.mode === 'light' ? 'light' : null);
+  THEME._mode = mode || THEME._mode || 'light';
+  if (mode && obj[mode]) merge(obj[mode]); // sobrepõe com o set do modo ativo
+}
+
+// applyWindowChrome: Tier-0 "grátis" — cantos arredondados (e titlebar escura no
+// modo dark) via DWM (Win11). DECLARE DLL + DwmSetWindowAttribute em ThisForm.HWnd,
+// prependido no Init. Opt-in por token `win11`; em <Win11 o atributo é ignorado
+// (no-op gracioso). Mantém a promessa "sem runtime" — é só API nativa do Windows.
+function applyWindowChrome(ir) {
+  if (!THEME.win11) return;
+  const dark = THEME._mode === 'dark';
+  const L = [
+    `${ind(1)}* chrome Win11 (DWM): cantos arredondados${dark ? ' + titlebar escura' : ''} (ignorado em <Win11)`,
+    `${ind(1)}DECLARE INTEGER DwmSetWindowAttribute IN dwmapi.dll INTEGER hwnd, INTEGER attr, INTEGER @ pv, INTEGER cb`,
+    `${ind(1)}LOCAL lnVal`,
+    `${ind(1)}lnVal = 2  && DWMWCP_ROUND`,
+    `${ind(1)}DwmSetWindowAttribute(ThisForm.HWnd, 33, @lnVal, 4)  && WINDOW_CORNER_PREFERENCE`,
+  ];
+  if (dark) {
+    L.push(`${ind(1)}lnVal = 1`);
+    L.push(`${ind(1)}DwmSetWindowAttribute(ThisForm.HWnd, 20, @lnVal, 4)  && USE_IMMERSIVE_DARK_MODE`);
   }
+  prependInit(ir, L.join('\n'));
+}
+
+// prependInit: injeta código no início do Init, mas DEPOIS de um LPARAMETERS/PARAMETERS
+// líder (que precisa ser a 1ª linha executável) e de comentários iniciais.
+function prependInit(ir, code) {
+  const init = ir.methods.Init;
+  if (!init) { ir.methods.Init = code; return; }
+  const lines = init.split('\n');
+  let at = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t === '' || t.startsWith('*')) { at = i + 1; continue; }
+    at = /^L?PARAMETERS\b/i.test(t) ? i + 1 : i; // depois do (L)PARAMETERS; senão antes do 1º código
+    break;
+  }
+  lines.splice(at, 0, code);
+  ir.methods.Init = lines.join('\n');
+}
+
+// applyRuntimeColors: cor de DESIGN no SCX gerado NÃO aplica no DO FORM (carrega
+// corrompida — só o byte baixo sobrevive); atribuição em RUNTIME aplica certo. Então
+// re-emitimos toda cor (form + controles, BackColor/ForeColor/BorderColor/FillColor)
+// como atribuição no Init, pelo caminho pontilhado (PARENT já resolvido pós-layout).
+function applyRuntimeColors(ir) {
+  const byName = {};
+  for (const c of ir.controls) byName[(c.name || '').toLowerCase()] = c;
+  const pathOf = (c) => {
+    const parts = [c.name];
+    let p = c.parent && byName[c.parent.toLowerCase()];
+    while (p) { parts.unshift(p.name); p = p.parent && byName[p.parent.toLowerCase()]; }
+    return 'ThisForm.' + parts.join('.');
+  };
+  const COLOR = ['BackColor', 'ForeColor', 'BorderColor', 'FillColor'];
+  const lines = [];
+  for (const cp of ['BackColor', 'ForeColor']) {
+    if (ir.properties && typeof ir.properties[cp] === 'number') lines.push(`${ind(1)}ThisForm.${cp} = ${ir.properties[cp]}`);
+  }
+  for (const c of ir.controls) {
+    if (!c.properties) continue;
+    const base = pathOf(c);
+    for (const cp of COLOR) if (typeof c.properties[cp] === 'number') lines.push(`${ind(1)}${base}.${cp} = ${c.properties[cp]}`);
+  }
+  if (lines.length) prependInit(ir, lines.join('\n'));
+}
+
+// applyFlatChrome: modo "FLAT" (inspirado no Pwi_vf9_Platavf). Tira a borda/titlebar
+// nativa do form e injeta um header próprio: título (fontTitle) + controlbox custom
+// (minimizar/maximizar/fechar em fonte Marlett, hover por shade(), arrastar-para-mover
+// via WM_NCLBUTTONDOWN). Tudo inline no SCX — sem .vcx externa, mantém o artefato
+// auto-contido. Opt-in pelo token `flat`. Só em forms TSX (render()).
+function applyFlatChrome(ir) {
+  if (!THEME.flat) return;
+  const W = typeof ir.width === 'number' ? ir.width : 400;
+  const H = 34; // altura do header
+  ir.properties = ir.properties || {};
+  ir.properties.TitleBar = 0;   // sem barra de título nativa
+  ir.properties.BorderStyle = 0; // sem borda (chrome é nosso)
+  // empurra o conteúdo do render() p/ baixo do header (só controles de topo; filhos
+  // de container acompanham o pai). Cresce a altura do form na mesma medida.
+  for (const c of ir.controls) if (!c.parent) c.top = (c.top || 0) + H;
+  if (typeof ir.height === 'number') ir.height += H;
+  const onPri = hexToRGB(THEME.onPrimary);
+  const hoverBtn = shade('primary', 24);    // hover min/max: primary mais claro
+  const hoverClose = hexToRGB('#e81123');   // hover fechar: vermelho (padrão Windows)
+  // arrastar a janela sem borda: devolve a captura e manda o gerenciador tratar como
+  // clique na "legenda" (HTCAPTION) — drag nativo, com snap, igual a uma titlebar.
+  const drag = [
+    'DECLARE INTEGER ReleaseCapture IN user32',
+    'DECLARE INTEGER SendMessage IN user32 INTEGER hWnd, INTEGER Msg, INTEGER wParam, INTEGER lParam',
+    'ReleaseCapture()',
+    'SendMessage(ThisForm.HWnd, 161, 2, 0)  && WM_NCLBUTTONDOWN, HTCAPTION',
+  ].join('\n');
+  const chrome = [];
+  // header (barra colorida full-width)
+  chrome.push({ type: 'container', name: 'cntFlatBar', left: 0, top: 0, width: W, height: H,
+    properties: { BackColor: hexToRGB(THEME.primary), BackStyle: 1, BorderWidth: 0 },
+    methods: { MouseDown: drag } });
+  // título
+  chrome.push({ type: 'label', name: 'lblFlatTitle', parent: 'cntFlatBar', left: 12, top: 9, width: W - 110, height: 18,
+    caption: ir.caption || '',
+    properties: { BackStyle: 0, ForeColor: onPri, FontSize: 11, FontName: foxString(THEME.fontTitle || THEME.fontBody || THEME.font || 'Segoe UI') },
+    methods: { MouseDown: drag } });
+  // botão do controlbox: container (área de hover full-height) + label Marlett centrado.
+  // Click e MouseEnter ficam no container E no label (o label é o controle de topo sob
+  // o cursor sobre o glifo) — assim clicar/hoverar no símbolo funciona sem buraco.
+  const btn = (name, glyph, x, click, hover) => {
+    chrome.push({ type: 'container', name, parent: 'cntFlatBar', left: x, top: 0, width: 30, height: H,
+      properties: { BackStyle: 0, BorderWidth: 0 },
+      methods: { Click: click, MouseEnter: `This.BackStyle = 1\nThis.BackColor = ${hover}`, MouseLeave: 'This.BackStyle = 0' } });
+    chrome.push({ type: 'label', name: name + 'g', parent: name, left: 0, top: 9, width: 30, height: 16,
+      caption: glyph,
+      properties: { BackStyle: 0, Alignment: 2, FontName: foxString('Marlett'), FontSize: 10, ForeColor: onPri },
+      methods: { Click: click, MouseEnter: `This.Parent.BackStyle = 1\nThis.Parent.BackColor = ${hover}` } });
+  };
+  btn('cntFlatMin', '0', W - 90, 'ThisForm.WindowState = 1', hoverBtn);
+  btn('cntFlatMax', '1', W - 60, 'IF ThisForm.WindowState = 2\n    ThisForm.WindowState = 0\nELSE\n    ThisForm.WindowState = 2\nENDIF', hoverBtn);
+  btn('cntFlatClose', 'r', W - 30, 'ThisForm.Release()', hoverClose);
+  for (const c of chrome) ir.controls.push(c);
 }
 const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// devolve o NÚMERO de cor do VFP (0x00BBGGRR). Crucial: no memo do SCX a expressão
+// "RGB(r,g,b)" NÃO é avaliada pelo DO FORM (vira lixo) — tem que ser número literal.
+// O número também é válido em código runtime (This.BackColor = 16579320).
 function hexToRGB(hex) {
-  const h = hex.replace('#', '');
+  const h = String(hex).replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
-  return `RGB(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+  return ((n >> 16) & 255) + ((n >> 8) & 255) * 256 + (n & 255) * 65536;
 }
 function themeColor(name) {
   if (THEME[name]) return hexToRGB(THEME[name]);
   if (/^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(name)) return hexToRGB(name[0] === '#' ? name : '#' + name);
   return null;
+}
+// shade: deriva um tom mais claro (amt>0) ou escuro (amt<0) de uma cor base — como
+// o ALTERARGB do "FLAT". Aceita token ou hex; devolve "RGB(r, g, b)". Usado p/ gerar
+// estados (hover/zebra/borda) de UMA cor, em vez de hardcodar cada tom.
+function shade(nameOrHex, amt) {
+  const hex = THEME[nameOrHex] || nameOrHex;
+  const h = String(hex).replace('#', '');
+  if (!/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(h)) return null;
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  const clamp = (v) => Math.max(0, Math.min(255, v + amt));
+  return clamp((n >> 16) & 255) + clamp((n >> 8) & 255) * 256 + clamp(n & 255) * 65536; // número VFP
 }
 
 // readJsxAttrs: atributos do elemento -> { nome: valor } (string | número | {ident}
@@ -1559,6 +1722,82 @@ function parseJsx(node, ctx, scope = {}) {
       return { kind: 'grid', attrs, cols, node };
     }
     if (tag === 'GridColumn') throw new CompileError('<GridColumn> só é válida dentro de <Grid>', node, ctx.sf);
+    // ── UI Kit: componentes compostos (açúcar sobre primitivos + tokens) ──────────
+    // <Card title>: Container surface + cantos arredondados + borda neutra + padding,
+    // com um Label de título (bold, onSurface) acima dos filhos. Re-estiliza via tokens.
+    if (tag === 'Card') {
+      const title = typeof attrs.title === 'string' ? attrs.title : undefined;
+      const kids = jsxKids(node).map((c) => parseJsx(c, ctx, scope));
+      const titleModel = title ? { kind: 'control', baseclass: 'label', node, attrs: {
+        caption: title, bold: true, textColor: 'onSurface', fontSize: 13, width: Math.max(120, title.length * 8),
+        fontName: THEME.fontTitle || THEME.fontBody || THEME.font, transparent: true, // papel "título", fundo transparente
+      } } : null;
+      // divisória fina sob o título (separa header do conteúdo — padrão Win11 Settings)
+      const dividerModel = title ? { kind: 'control', baseclass: 'shape', node, attrs: {
+        color: 'border', height: 1, alignSelf: 'stretch',
+      } } : null;
+      const head = titleModel ? [titleModel, dividerModel] : [];
+      // fundo do card = SHAPE arredondado atrás (Container não arredonda); container transparente.
+      const containerAttrs = {};
+      for (const k of ['name', 'width', 'height', 'grow', 'flexGrow', 'alignSelf']) if (attrs[k] !== undefined) containerAttrs[k] = attrs[k];
+      return {
+        kind: 'container', dir: 'column',
+        gap: typeof attrs.gap === 'number' ? attrs.gap : 10,
+        pad: typeof attrs.padding === 'number' ? attrs.padding : (typeof attrs.pad === 'number' ? attrs.pad : 16),
+        attrs: containerAttrs,
+        bg: {
+          color: typeof attrs.color === 'string' ? attrs.color : 'surface',
+          borderColor: typeof attrs.borderColor === 'string' ? attrs.borderColor : 'border',
+          rounded: typeof attrs.rounded === 'number' ? attrs.rounded : 22,
+        },
+        node,
+        children: [...head, ...kids],
+      };
+    }
+    // <FormField label required bind width>: par Label (muted, pequeno) + TextBox com
+    // o espaçamento/alinhamento corretos — substitui o GroupBox+Label+TextBox colado à mão.
+    if (tag === 'FormField') {
+      const label = typeof attrs.label === 'string' ? attrs.label : '';
+      const caption = attrs.required === true ? `${label} *` : label;
+      // input tematizado (não branco no dark) + borda FLAT (SpecialEffect 1) em vez do 3D rebaixado
+      const fieldAttrs = { color: 'bg', textColor: 'onSurface', props: { SpecialEffect: 1 } };
+      if (typeof attrs.bind === 'string') fieldAttrs.bind = attrs.bind;
+      if (typeof attrs.name === 'string') fieldAttrs.name = attrs.name;
+      if (typeof attrs.width === 'number') fieldAttrs.width = attrs.width;
+      if (typeof attrs.value === 'string' || typeof attrs.value === 'number') fieldAttrs.value = attrs.value;
+      if (typeof attrs.onInteractiveChange === 'string') fieldAttrs.onInteractiveChange = attrs.onInteractiveChange;
+      return {
+        kind: 'box', dir: 'column', gap: 3, pad: 0,
+        w: typeof attrs.width === 'number' ? attrs.width : undefined,
+        children: [
+          { kind: 'control', baseclass: 'label', node, attrs: { caption, textColor: 'muted', fontSize: 11, width: Math.max(80, caption.length * 7), transparent: true } },
+          { kind: 'control', baseclass: 'textbox', node, attrs: fieldAttrs },
+        ],
+      };
+    }
+    // <FlatButton variant icon onClick>: botão flat colorido (Container+Label+hover),
+    // não o CommandButton cinza. <Button flat> também cai aqui.
+    if (tag === 'FlatButton' || (tag === 'Button' && attrs.flat === true)) {
+      return { kind: 'flatbutton', attrs, node };
+    }
+    // <FormActions ok cancel onOk onCancel>: conjunto pronto OK/Cancelar à direita
+    // (Cancelar = secondary, OK/Salvar = primary), com botões flat + gap consistente.
+    if (tag === 'FormActions') {
+      const kids = [];
+      if (attrs.cancel !== false) kids.push({ kind: 'flatbutton', node, attrs: {
+        caption: typeof attrs.cancel === 'string' ? attrs.cancel : 'Cancelar',
+        variant: 'secondary', onClick: typeof attrs.onCancel === 'string' ? attrs.onCancel : undefined,
+      } });
+      kids.push({ kind: 'flatbutton', node, attrs: {
+        caption: typeof attrs.ok === 'string' ? attrs.ok : 'OK',
+        variant: typeof attrs.variant === 'string' ? attrs.variant : 'primary',
+        icon: typeof attrs.icon === 'string' ? attrs.icon : undefined,
+        onClick: typeof attrs.onOk === 'string' ? attrs.onOk : undefined,
+      } });
+      return { kind: 'box', dir: 'row', gap: 8, pad: 0, justify: 'end',
+        w: typeof attrs.width === 'number' ? attrs.width : undefined,
+        children: kids };
+    }
     if (JSX_BASECLASS[tag]) return { kind: 'control', baseclass: JSX_BASECLASS[tag], attrs, node };
     // @Component do usuário: expande o render() dele inline, com as props do uso
     const comp = resolveComponentClass(node, ctx);
@@ -1632,6 +1871,13 @@ const growOf = (a) => (typeof a.grow === 'number' ? a.grow : a.grow === true ? 1
 // alignSelf por-item (sobrepõe o align do container no eixo cruzado): start|center|end|stretch
 const alignSelfOf = (a) => (typeof a.alignSelf === 'string' ? a.alignSelf : undefined);
 
+// iconPath: resolve `icon="save"` -> "icons/save.png" (convenção; dir do projeto,
+// resolvido em runtime como os forms). Se já vier com pasta/extensão, usa verbatim.
+// Permite trocar o set inteiro de ícones sem tocar nos forms (só os PNGs em icons/).
+function iconPath(name) {
+  return /[\\/.]/.test(name) ? name : `icons/${name}.png`;
+}
+
 // controlLeaf: tag de controle -> folha de layout { w, h, grow, place }. place()
 // grava Top/Left/Width/Height finais (após o motor de layout) e empilha na IR.
 function controlLeaf(model, ctx, st) {
@@ -1651,13 +1897,15 @@ function controlLeaf(model, ctx, st) {
   }
   if (typeof a.interval === 'number') props.Interval = a.interval; // Timer: intervalo (ms)
   if (typeof a.value === 'number' || typeof a.value === 'string') props.Value = typeof a.value === 'string' ? foxString(a.value) : a.value;
-  const pic = typeof a.src === 'string' ? a.src : (typeof a.picture === 'string' ? a.picture : null);
-  if (pic) props.Picture = foxString(pic); // <Image src> -> Picture (PNG/JPG com alpha)
+  const pic = typeof a.src === 'string' ? a.src : (typeof a.picture === 'string' ? a.picture
+    : (typeof a.icon === 'string' ? iconPath(a.icon) : null)); // icon="save" -> icons/save.png
+  if (pic) props.Picture = foxString(pic); // <Image src>/<Button icon> -> Picture (PNG/JPG alpha)
   if (typeof a.stretch === 'number') props.Stretch = a.stretch; // 0=clip 1=isometrico 2=esticar
   const cls = applyStyle(props, a); // utilitários class podem definir w-/h-
   // Shape: preenchimento sólido = FillStyle 0 (Solid) + FillColor (alem do BackColor),
   // senao o interior fica transparente e so a borda aparece.
   if (bc === 'shape' && props.BackColor != null) { props.FillColor = props.BackColor; props.FillStyle = 0; }
+  if (a.props && typeof a.props === 'object') Object.assign(props, a.props); // props VFP cruas (RHS verbatim)
   if (Object.keys(props).length) ctrl.properties = props;
   // eventos: onTimer/onClick/onInit/onInteractiveChange/... = "metodo" -> ThisForm.<metodo>()
   for (const k of Object.keys(a)) {
@@ -1692,7 +1940,9 @@ function componentLeaf(model, ctx, st) {
   } else {
     throw new CompileError(`<${model.tag}/> nao suportado (built-ins: OpenFormButton, SaveButton; ou crie um @Component)`, model.node, ctx.sf);
   }
-  const props = {}; const cls = applyStyle(props, a); if (Object.keys(props).length) ctrl.properties = props;
+  const props = {};
+  if (typeof a.icon === 'string') props.Picture = foxString(iconPath(a.icon)); // SaveButton icon
+  const cls = applyStyle(props, a); if (Object.keys(props).length) ctrl.properties = props;
   const w = typeof a.width === 'number' ? a.width : (cls.width != null ? cls.width : sz.w);
   const h = typeof a.height === 'number' ? a.height : (cls.height != null ? cls.height : sz.h);
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => { ctrl.left = x; ctrl.top = y; ctrl.width = W; ctrl.height = H; st.ir.controls.push(ctrl); } };
@@ -1717,10 +1967,19 @@ function containerLeaf(model, ctx, st) {
   const w = typeof a.width === 'number' ? a.width : right + model.pad;
   const h = typeof a.height === 'number' ? a.height : bottom + model.pad;
   const ctrl = { type: 'container', name };
-  const props = { BorderWidth: 1, BackStyle: 0 }; applyStyle(props, a); ctrl.properties = props;
+  // model.bg => fundo arredondado via SHAPE atrás (Curvature em Container é no-op; em
+  // Shape arredonda). O container fica TRANSPARENTE e sem borda; o Shape provê surface+borda+cantos.
+  const props = model.bg ? { BorderWidth: 0, BackStyle: 0 } : { BorderWidth: 1, BackStyle: 0 };
+  applyStyle(props, a); ctrl.properties = props;
   return {
     w, h, grow: growOf(a), alignSelf: alignSelfOf(a),
     place: (x, y, W, H) => {
+      if (model.bg) { // shape de fundo (atrás de tudo), cores aplicadas no Init por applyRuntimeColors
+        const surf = themeColor(model.bg.color);
+        st.ir.controls.push({ type: 'shape', name: 'shp' + name, left: x, top: y, width: W, height: H,
+          properties: { BackStyle: 1, FillStyle: 0, Curvature: model.bg.rounded, BorderWidth: 1,
+            BackColor: surf, FillColor: surf, BorderColor: themeColor(model.bg.borderColor) } });
+      }
       ctrl.left = x; ctrl.top = y; ctrl.width = W; ctrl.height = H;
       st.ir.controls.push(ctrl);
       // filhos diretos ganham PARENT = container; filhos de sub-containers já têm
@@ -1786,15 +2045,38 @@ function gridLeaf(model, ctx, st) {
     props.ColumnCount = cols.length;
     props.RecordSourceType = source ? 1 : 0; // 1=Alias (liga ao cursor) | 0=None (grade vazia)
     if (source) props.RecordSource = foxString(source);
+    // chrome moderno (default, sobreponível): sem coluna de record/delete mark (o
+    // maior "cara de 2003"), só linhas horizontais, scrollbar vertical. Headers em bold.
+    const zebra = a.zebra !== false;
+    const boldHeaders = a.boldHeaders !== false;
+    props.GridLines = typeof a.gridLines === 'number' ? a.gridLines : 1; // 1=horizontal
+    props.RecordMark = a.recordMark === true ? '.T.' : '.F.';
+    props.DeleteMark = a.deleteMark === true ? '.T.' : '.F.';
+    props.ScrollBars = typeof a.scrollBars === 'number' ? a.scrollBars : 2; // 2=vertical
+    props.Themes = '.F.'; // header flat com NOSSAS cores (em vez do tema do OS, que não escurece)
+    if (THEME.fontData) props.FontName = foxString(THEME.fontData); // papel "dados" (Consolas)
+    // larguras: a última coluna absorve a sobra (largura do grid - colunas - scrollbar),
+    // pra grade não terminar com uma coluna vazia à direita.
+    const widths = cols.map((c) => (typeof c.width === 'number' ? c.width : 80));
+    colW = widths.reduce((s, w) => s + w, 0);
+    if (typeof a.width === 'number') {
+      const leftover = a.width - colW - 18; // ~scrollbar vertical + bordas
+      if (leftover > 4) { widths[widths.length - 1] += leftover; colW += leftover; }
+    }
+    // expressão de zebra avaliada por linha (RECNO par -> altRow; ímpar -> surface).
+    const zebraExpr = `IIF(MOD(RECNO(),2)=0, ${hexToRGB(THEME.altRow)}, ${hexToRGB(THEME.surface)})`;
+    const headBg = shade('surface', THEME._mode === 'dark' ? 12 : -10); // header destacado do corpo
+    const headFg = hexToRGB(THEME.onSurface);
     cols.forEach((c, idx) => {
       const i = idx + 1;
       const field = typeof c.field === 'string' ? c.field : (typeof c.bind === 'string' ? c.bind : undefined);
-      const w = typeof c.width === 'number' ? c.width : 80;
-      props[`Column${i}.Width`] = w;
-      colW += w;
+      props[`Column${i}.Width`] = widths[idx];
       if (field) props[`Column${i}.ControlSource`] = foxString(source ? `${source}.${field}` : field);
+      if (zebra) props[`Column${i}.DynamicBackColor`] = foxString(zebraExpr); // listras
       const header = typeof c.header === 'string' ? c.header : (field ? cap1(field) : undefined);
-      if (header && st.post) st.post.push({ ctrl, col: i, header }); // reaplicado no Init (pós-vinculação)
+      // header reaplicado no Init (a vinculação reescreve Caption); bold + cores idem p/
+      // não depender de prop de design de 3 níveis (Column.Header1.*) no genscx.
+      if (header && st.post) st.post.push({ ctrl, col: i, header, bold: boldHeaders, headBg, headFg });
     });
   }
   const cls = applyStyle(props, a); // class="w-.. h-.." pode sobrepor a largura
@@ -1804,8 +2086,57 @@ function gridLeaf(model, ctx, st) {
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => { ctrl.left = x; ctrl.top = y; ctrl.width = W; ctrl.height = H; st.ir.controls.push(ctrl); } };
 }
 
+// flatButtonLeaf: botão flat (Container colorido + Label centrado + ícone opcional),
+// com hover por shade() e Click -> ThisForm.<metodo>(). É um leaf posicionado pelo
+// motor de layout (place empilha o container e seus filhos, coords relativas). É o
+// "botão bonito" do kit — colorido de verdade, sem o cinza 3D do CommandButton.
+function flatButtonLeaf(model, ctx, st) {
+  const a = model.attrs;
+  const name = ctrlName(a, 'container', st);
+  const caption = typeof a.caption === 'string' ? a.caption : 'OK';
+  const variant = typeof a.variant === 'string' ? a.variant : 'primary';
+  // cores por variante. secondary/ghost contrastam com o card (surface) no dark:
+  // secondary = preenchimento neutro destacado; ghost = transparente + texto colorido.
+  const dark = THEME._mode === 'dark';
+  let bg, fg, hover, border = null;
+  if (variant === 'ghost') {
+    bg = null; fg = hexToRGB(THEME.primary); border = hexToRGB(THEME.border); hover = shade('surface', dark ? 18 : -8);
+  } else if (variant === 'secondary') {
+    bg = shade('surface', dark ? 22 : -10); fg = hexToRGB(THEME.onSurface); border = hexToRGB(THEME.border); hover = shade('surface', dark ? 34 : -20);
+  } else if (variant === 'danger') {
+    bg = hexToRGB(THEME.danger); fg = hexToRGB(THEME.onPrimary); hover = shade('danger', 18);
+  } else {
+    const base = THEME[variant] || THEME.primary; bg = hexToRGB(base); fg = hexToRGB(THEME.onPrimary); hover = shade(base, 18);
+  }
+  const outline = border != null;
+  const icon = typeof a.icon === 'string' ? iconPath(a.icon) : null;
+  const click = typeof a.onClick === 'string' ? `ThisForm.${a.onClick}()` : '';
+  const w = typeof a.width === 'number' ? a.width : Math.max(86, caption.length * 7 + (icon ? 34 : 18));
+  const h = typeof a.height === 'number' ? a.height : 30;
+  return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => {
+    const cont = { type: 'container', name, left: x, top: y, width: W, height: H,
+      properties: { BackStyle: bg ? 1 : 0, BorderWidth: outline ? 1 : 0, Curvature: 4 },
+      methods: { MouseEnter: `This.BackStyle = 1\nThis.BackColor = ${hover}`,
+        MouseLeave: bg ? `This.BackColor = ${bg}` : 'This.BackStyle = 0' } };
+    if (bg) cont.properties.BackColor = bg;
+    if (outline) cont.properties.BorderColor = border;
+    if (click) cont.methods.Click = click;
+    st.ir.controls.push(cont);
+    const tx = icon ? 22 : 0, tw = icon ? W - 22 : W;
+    const lbl = { type: 'label', name: name + 't', parent: name, caption,
+      left: tx, top: Math.round((H - 16) / 2), width: tw, height: 16,
+      properties: { BackStyle: 0, Alignment: 2, ForeColor: fg, FontName: foxString(THEME.fontBody || THEME.font || 'Segoe UI'), FontSize: 9 },
+      methods: Object.assign({ MouseEnter: `This.Parent.BackStyle = 1\nThis.Parent.BackColor = ${hover}` }, click ? { Click: click } : {}) };
+    st.ir.controls.push(lbl);
+    if (icon) st.ir.controls.push({ type: 'image', name: name + 'i', parent: name,
+      left: 8, top: Math.round((H - 16) / 2), width: 16, height: 16,
+      properties: { Picture: foxString(icon), BackStyle: 0, Stretch: 1 } });
+  } };
+}
+
 // toLayoutTree: modelo JSX -> árvore para o motor de layout (containers + folhas).
 function toLayoutTree(model, ctx, st) {
+  if (model.kind === 'flatbutton') return flatButtonLeaf(model, ctx, st);
   if (model.kind === 'box') {
     return {
       container: true, dir: model.dir, gap: model.gap, pad: model.pad, justify: model.justify, align: model.align, wrap: model.wrap,
@@ -1900,6 +2231,13 @@ function transpileForm(entry, opts = {}) {
   const ir = { name: cls.name ? cls.name.text : 'frmSemNome', properties: {}, controls: [], methods: {}, members: [] };
   const formDeco = hasDeco(cls, 'Form');
   if (formDeco) readFormDecorator(formDeco, ir, ctx);
+  // tipografia default do token de tema (ex.: "Segoe UI") — herdada por todos os
+  // controles do form, sem path baked. Só aplica se o form não fixou FontName.
+  ir.properties = ir.properties || {};
+  const bodyFont = THEME.fontBody || THEME.font; // papel "conteúdo"
+  if (bodyFont && ir.properties.FontName == null) ir.properties.FontName = foxString(bodyFont);
+  // fundo do form pelo token `bg` (neutro claro/escuro) — base do visual moderno.
+  if (THEME.bg && ir.properties.BackColor == null) ir.properties.BackColor = hexToRGB(THEME.bg);
   const routeDeco = hasDeco(cls, 'Route'); // @Route("nome") -> ir.route (mapa em routes.json)
   if (routeDeco && routeDeco.arguments[0] && ts.isStringLiteral(routeDeco.arguments[0])) ir.route = routeDeco.arguments[0].text;
 
@@ -1938,10 +2276,19 @@ function transpileForm(entry, opts = {}) {
     if (st.post.length) {
       const fix = st.post.map((p) => {
         const path = 'ThisForm.' + (p.ctrl.parent ? p.ctrl.parent + '.' : '') + p.ctrl.name;
-        return `${ind(1)}${path}.Column${p.col}.Header1.Caption = ${foxString(p.header)}`;
+        const lines = [`${ind(1)}${path}.Column${p.col}.Header1.Caption = ${foxString(p.header)}`];
+        if (p.bold) lines.push(`${ind(1)}${path}.Column${p.col}.Header1.FontBold = .T.`);
+        if (p.headBg) { // header com cores nossas (precisa Themes=.F. no grid)
+          lines.push(`${ind(1)}${path}.Column${p.col}.Header1.BackColor = ${p.headBg}`);
+          lines.push(`${ind(1)}${path}.Column${p.col}.Header1.ForeColor = ${p.headFg}`);
+        }
+        return lines.join('\n');
       }).join('\n');
       ir.methods.Init = ir.methods.Init ? ir.methods.Init + '\n' + fix : fix;
     }
+    applyFlatChrome(ir);   // modo flat: header custom + controlbox (se token flat)
+    applyRuntimeColors(ir); // cores no Init (design-prop de cor não aplica no SCX)
+    applyWindowChrome(ir); // Tier-0: chrome Win11 (cantos/dark) via DWM, se token win11
     applyFormValidate(ir, ctx); // @Form({ validate: Schema }) -> método Validar()
     return ir;
   }
@@ -1959,6 +2306,8 @@ function transpileForm(entry, opts = {}) {
     }
   }
   applyConstructorDI(cls, ir, ctx);
+  applyRuntimeColors(ir); // cores no Init (design-prop de cor não aplica no SCX)
+  applyWindowChrome(ir); // Tier-0: chrome Win11 (cantos/dark) via DWM, se token win11
   applyFormValidate(ir, ctx); // @Form({ validate: Schema }) -> método Validar()
   return ir;
 }

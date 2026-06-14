@@ -44,7 +44,7 @@ check('tipografia da label (FontSize/FontName/FontBold/Alignment/ForeColor)', ()
   must(p.FontName === '"Segoe UI"', 'FontName != "Segoe UI": ' + p.FontName);
   must(p.FontBold === '.T.', 'FontBold ausente');
   must(p.Alignment === 2, 'Alignment (center=2) ausente: ' + p.Alignment);
-  must(p.ForeColor === 'RGB(226, 232, 240)', 'ForeColor (textColor hex) errado: ' + p.ForeColor);
+  must(p.ForeColor === 15788258, 'ForeColor (textColor) errado: ' + p.ForeColor); // RGB(226,232,240) como número VFP (cor é número, não "RGB()")
   must(p.BackStyle === 0, 'transparent deveria dar BackStyle 0: ' + p.BackStyle);
   return 'FontSize 18, Segoe UI, bold, center, #e2e8f0, transparente';
 });
@@ -52,15 +52,15 @@ check('tipografia da label (FontSize/FontName/FontBold/Alignment/ForeColor)', ()
 check('shape "bar" preenchido + arredondado (FillColor/FillStyle/Curvature)', () => {
   const p = byName.bar && byName.bar.properties;
   must(p, 'bar sem properties');
-  must(p.FillColor === 'RGB(124, 58, 237)' && p.FillStyle === 0, 'shape sem preenchimento solido: ' + JSON.stringify(p));
-  must(p.BackColor === 'RGB(124, 58, 237)' && p.BackStyle === 1, 'shape sem BackColor opaco');
+  must(p.FillColor === 15547004 && p.FillStyle === 0, 'shape sem preenchimento solido: ' + JSON.stringify(p)); // RGB(124,58,237)
+  must(p.BackColor === 15547004 && p.BackStyle === 1, 'shape sem BackColor opaco');
   must(p.Curvature === 12, 'Curvature (rounded) != 12: ' + p.Curvature);
   return 'FillColor solido + Curvature 12';
 });
 
 check('shape "track" com borda (BorderColor/BorderWidth)', () => {
   const p = byName.track && byName.track.properties;
-  must(p && p.BorderColor === 'RGB(51, 65, 85)' && p.BorderWidth === 1, 'borda do track ausente: ' + JSON.stringify(p));
+  must(p && p.BorderColor === 5587251 && p.BorderWidth === 1, 'borda do track ausente: ' + JSON.stringify(p)); // RGB(51,65,85)
   return 'BorderColor #334155 width 1';
 });
 

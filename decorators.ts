@@ -73,6 +73,8 @@ export interface ControlProps extends StyleProps, FlexItemProps {
   interval?: number;   // Timer: intervalo em ms (-> Interval)
   src?: string;        // <Image src> -> Picture (PNG/JPG; alpha suportado)
   picture?: string;    // sinonimo de src
+  icon?: string;       // "save" -> icons/save.png (Picture); troca o set sem mexer no form
+  flat?: boolean;      // <Button flat>: vira botão flat colorido (Container+hover), não CommandButton
   stretch?: number;    // Image.Stretch: 0=clip, 1=isometrico, 2=esticar
   // eventos: o valor é o nome de um método do form -> ThisForm.<metodo>() no evento.
   onClick?: string;
@@ -256,6 +258,13 @@ export interface GridProps extends StyleProps, FlexItemProps {
   name?: string;
   source?: string;        // alias do cursor -> RecordSource (RecordSourceType=1)
   recordSource?: string;  // sinônimo de source
+  // chrome moderno (defaults ligados; passe false/numero p/ sobrepor):
+  zebra?: boolean;        // listras por linha (DynamicBackColor) — default true
+  boldHeaders?: boolean;  // headers em negrito — default true
+  recordMark?: boolean;   // coluna de seleção à esquerda — default false (oculta)
+  deleteMark?: boolean;   // coluna de marca de exclusão — default false (oculta)
+  gridLines?: number;     // 0=nenhuma 1=horizontal 2=vertical 3=ambas — default 1
+  scrollBars?: number;    // 0=nenhuma 1=horiz 2=vert 3=ambas — default 2
   children?: any;
 }
 export const Grid: FC<GridProps> = (() => {}) as any;
@@ -282,5 +291,58 @@ export const OpenFormButton: FC<OpenFormButtonProps> = (() => {}) as any;
 /** <SaveButton caption variant>: botão "Salvar" pronto (ou @Component próprio). */
 export interface SaveButtonProps extends StyleProps, FlexItemProps {
   caption?: string;
+  icon?: string;       // "save" -> icons/save.png (Picture)
 }
 export const SaveButton: FC<SaveButtonProps> = (() => {}) as any;
+
+// ───────────────────────────────────────────────────────────────────────────
+// UI Kit — componentes COMPOSTOS (açúcar sobre primitivos + tokens de tema).
+// Em build-time o transpilador (parseJsx) os desugara para Container/Label/TextBox;
+// trocar os tokens em vfp.theme.json re-estiliza tudo no próximo build.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** <Card title>: painel "surface" com cantos arredondados, borda neutra, padding e
+ *  um título opcional. Substitui o GroupBox. Desugara p/ <Container>. */
+export interface CardProps extends StyleProps, FlexItemProps {
+  title?: string;       // título (Label bold acima dos filhos)
+  name?: string;
+  gap?: number;
+  padding?: number;
+  pad?: number;
+  children?: any;
+}
+export const Card: FC<CardProps> = (() => {}) as any;
+
+/** <FormField label required bind>: par rótulo + campo com espaçamento/tipografia
+ *  corretos. Substitui o Label+TextBox colado à mão. Desugara p/ <Column>+<Label>+<TextBox>. */
+export interface FormFieldProps extends FlexItemProps {
+  label: string;        // rótulo do campo (obrigatório)
+  bind?: string;        // -> ControlSource do TextBox (cria o membro)
+  name?: string;        // nome do TextBox (senão derivado do bind)
+  required?: boolean;   // anexa " *" ao rótulo
+  value?: string | number;
+  onInteractiveChange?: string; // método chamado a cada tecla (autocomplete/máscara)
+}
+export const FormField: FC<FormFieldProps> = (() => {}) as any;
+
+/** <FlatButton variant icon onClick>: botão flat COLORIDO (Container+Label+hover por
+ *  shade), não o CommandButton cinza. variant: primary|secondary|ghost|danger|<token>. */
+export interface FlatButtonProps extends FlexItemProps {
+  caption: string;
+  variant?: "primary" | "secondary" | "ghost" | "danger" | string;
+  icon?: string;        // "save" -> icons/save.png (à esquerda do texto)
+  onClick?: string;     // método do form -> ThisForm.<m>()
+}
+export const FlatButton: FC<FlatButtonProps> = (() => {}) as any;
+
+/** <FormActions ok cancel onOk onCancel>: conjunto pronto de ações à direita
+ *  (Cancelar = secondary, OK/Salvar = primary). Substitui o par de botões colado à mão. */
+export interface FormActionsProps extends FlexItemProps {
+  ok?: string;           // rótulo do botão primário (default "OK")
+  cancel?: string | false; // rótulo do secundário, ou false p/ ocultar (default "Cancelar")
+  onOk?: string;         // método -> ThisForm.<m>()
+  onCancel?: string;
+  icon?: string;         // ícone do botão OK
+  variant?: string;      // variante do botão OK (default "primary")
+}
+export const FormActions: FC<FormActionsProps> = (() => {}) as any;

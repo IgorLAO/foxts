@@ -19,8 +19,8 @@ const { transpile, transpileForm, collectRoute, collectMenus, finalizeFormIR, se
 const layout = require('./layout'); // motor de layout (flex | yoga)
 
 const FOXCLI = require('./foxcli-path');
-const SELF = path.resolve(__filename);
-const CORE = path.join(__dirname, 'decorators.ts'); // @vfp/core (tipos/decorators)
+// versao do foxts (deste repo) -> devDependency no scaffold (package.json portavel)
+const FOXTS_VERSION = require('./package.json').version;
 
 // ---- utils -----------------------------------------------------------------
 const log = (...a) => console.log('[vfp]', ...a);
@@ -44,17 +44,19 @@ function foxcli(args) {
 
 // ---- templates -------------------------------------------------------------
 // UI Compiler: form em TSX (render() -> SCX/SCT). É o artefato dominante.
-const tplForm = (Name) => `import { Form, Column, Row, Label, TextBox, SaveButton } from "@vfp/core";
+const tplForm = (Name) => `import { Form, Column, Row, Card, FormField, SaveButton } from "@vfp/core";
 
-@Form({ caption: "${Name}", width: 520, height: 360 })
+@Form({ caption: "${Name}", width: 460, height: 360 })
 export class ${Name}Form {
   render() {
     return (
-      <Column gap={10}>
-        <Label caption="${Name}" />
-        <TextBox bind="nome" width={300} />
+      <Column gap={14} padding={16}>
+        <Card title="${Name}">
+          <FormField label="Nome" required bind="nome" width={260} />
+          <FormField label="Descricao" bind="descricao" width={260} />
+        </Card>
         <Row gap={8}>
-          <SaveButton caption="Salvar" />
+          <SaveButton caption="Salvar" variant="primary" />
         </Row>
       </Column>
     );
@@ -106,30 +108,51 @@ export function main(): void {
 `;
 
 // jsx preserve (o template gera .form.tsx) + globals.d.ts do foxts (console.log e
-// namespace JSX p/ o editor). Caminho absoluto: convencao atual do scaffold (divida conhecida).
+// namespace JSX p/ o editor). Caminhos apontam para o pacote foxts instalado
+// (devDependency) -> portavel entre maquinas, sem path baked desta maquina.
 const tplTsconfig = JSON.stringify({
   compilerOptions: {
     target: 'ES2020', module: 'CommonJS', strict: true, experimentalDecorators: true,
     jsx: 'preserve', lib: ['ES2020'], // sem DOM: console vem do globals.d.ts (como no loadProgram)
-    moduleResolution: 'Node', baseUrl: '.', paths: { '@vfp/core': [CORE.replace(/\.ts$/, '')] },
+    moduleResolution: 'Node', baseUrl: '.', paths: { '@vfp/core': ['node_modules/foxts/decorators'] },
   },
-  files: [path.join(__dirname, 'globals.d.ts')],
+  files: ['node_modules/foxts/globals.d.ts'],
   include: ['src'],
 }, null, 2) + '\n';
 
 const tplConfig = JSON.stringify({ srcDir: 'src', outDir: 'dist', main: 'src/main.ts' }, null, 2) + '\n';
 
+// tema default do scaffold: projeto novo ja nasce MODERNO (3 fontes Segoe UI, modo
+// flat com chrome custom, cantos Win11, paleta em tokens light/dark). Editar este
+// arquivo re-estiliza o app inteiro no proximo build (restyle-by-recompile).
+const tplTheme = JSON.stringify({
+  font: 'Segoe UI', fontTitle: 'Segoe UI Light', fontBody: 'Segoe UI', fontData: 'Consolas',
+  mode: 'light', win11: true, flat: true,
+  colors: {
+    primary: '#2563eb', onPrimary: '#ffffff', surface: '#ffffff', onSurface: '#0f172a',
+    border: '#e2e8f0', altRow: '#f1f5f9', muted: '#64748b', bg: '#f8fafc',
+  },
+  dark: {
+    surface: '#1e293b', onSurface: '#f1f5f9', border: '#334155', altRow: '#0f172a',
+    muted: '#94a3b8', bg: '#0f172a',
+  },
+}, null, 2) + '\n';
+
+// scripts portaveis: chamam o bin `vfp` do pacote foxts (npm poe os bins locais no
+// PATH dos scripts) em vez de `node <abspath desta maquina>`. foxts entra como
+// devDependency (versao lida do package.json deste repo) -> projeto portavel.
 const tplPkg = (name) => JSON.stringify({
   name, version: '0.1.0', private: true,
   scripts: {
-    build: `node ${JSON.stringify(SELF)} build`,
-    watch: `node ${JSON.stringify(SELF)} watch`,
-    dev: `node ${JSON.stringify(SELF)} watch`, // alias (memoria muscular React)
-    run: `node ${JSON.stringify(SELF)} run`,
-    clean: `node ${JSON.stringify(SELF)} clean`,
-    'create:form': `node ${JSON.stringify(SELF)} generate form`,
-    'create:class': `node ${JSON.stringify(SELF)} generate class`,
+    build: 'vfp build',
+    watch: 'vfp watch',
+    dev: 'vfp watch', // alias (memoria muscular React)
+    run: 'vfp run',
+    clean: 'vfp clean',
+    'create:form': 'vfp generate form',
+    'create:class': 'vfp generate class',
   },
+  devDependencies: { foxts: `^${FOXTS_VERSION}` },
 }, null, 2) + '\n';
 
 // ---- comandos --------------------------------------------------------------
@@ -141,6 +164,7 @@ function cmdNew(name) {
   fs.writeFileSync(path.join(root, 'package.json'), tplPkg(name));
   fs.writeFileSync(path.join(root, 'tsconfig.json'), tplTsconfig);
   fs.writeFileSync(path.join(root, 'vfp.config.json'), tplConfig);
+  fs.writeFileSync(path.join(root, 'vfp.theme.json'), tplTheme); // projeto nasce moderno (flat)
   fs.writeFileSync(path.join(root, 'src/main.ts'), tplMain);
   log(`projeto criado em ${root}`);
   log('próximos passos: cd ' + name + '  →  npm run create:form Cliente  →  npm run build');
@@ -294,13 +318,25 @@ async function cmdBuild(root) {
 // writeBootstrap: dist/app.prg que linka todos os PRGs (SET PROCEDURE) e a pasta de
 // forms (SET PATH) — assim serviços e `DO FORM` resolvem em runtime —, ativa o(s)
 // menu(s) (DO <nome>, após linkar e antes da UI) e dispara main() ou o form de entrada.
-// Caminhos absolutos (gerado para esta máquina).
+// Caminhos RELATIVOS: lcHome = dir do proprio app.prg (SYS(16,1) = caminho do PRG
+// corrente). Nenhum caminho da maquina fica baked no arquivo -> portavel entre
+// maquinas/EXE. tcHome (param opcional, passado pelo `vfp run`) sobrepoe quando o
+// foxcli relocaliza o app.prg p/ um BOOT temporario (ai SYS(16,1) aponta p/ o temp).
 function writeBootstrap(out, prgs, hasMain, entry, menus = []) {
-  const lines = ['* app.prg — bootstrap gerado pelo foxts (NAO editar)'];
-  for (const p of prgs) lines.push(`SET PROCEDURE TO ("${p}") ADDITIVE`);
-  lines.push(`SET PATH TO ("${path.join(out, 'forms')}") ADDITIVE`);
+  // caminho relativo de p em relacao a out (dir do app.prg), com separador VFP (\)
+  const rel = (p) => path.relative(out, p).split(path.sep).join('\\');
+  const lines = [
+    '* app.prg — bootstrap gerado pelo foxts (NAO editar)',
+    'LPARAMETERS tcHome',
+    'LOCAL lcHome',
+    // home = param do `vfp run` (se vier) senao o dir do proprio app.prg em runtime
+    'lcHome = IIF(VARTYPE(tcHome) = "C" AND !EMPTY(tcHome), ADDBS(tcHome), ADDBS(JUSTPATH(SYS(16,1))))',
+    'SET DEFAULT TO (lcHome)',
+  ];
+  for (const p of prgs) lines.push(`SET PROCEDURE TO (lcHome + "${rel(p)}") ADDITIVE`);
+  lines.push(`SET PATH TO (lcHome + "forms") ADDITIVE`);
   for (const m of menus) lines.push(`DO ${m}`); // ativa a barra de menus (ACTIVATE MENU NOWAIT)
-  if (entry) { lines.push(`DO FORM ("${path.join(out, 'forms', entry + '.scx')}")`, 'READ EVENTS'); }
+  if (entry) { lines.push(`DO FORM (lcHome + "forms\\${entry}.scx")`, 'READ EVENTS'); }
   else if (hasMain) lines.push('main()');
   fs.writeFileSync(path.join(out, 'app.prg'), lines.join('\n') + '\n', 'latin1');
 }
@@ -320,22 +356,70 @@ function cmdClean(root) {
   log('limpo: ' + path.relative(process.cwd(), out));
 }
 
+// writeExeManifest: grava <exe>.exe.manifest ao lado do EXE. O Windows carrega esse
+// manifest externo automaticamente quando o EXE nao tem um embutido (caso do BUILD EXE
+// do VFP), ativando o Common Controls v6 -> botoes/checkbox/option/progress/tree/list
+// nativos pegam o tema do OS (Win10/11), sem reescrever controle. dpiAware e OPT-IN
+// (config dpiAware:true): o VFP nao escala bem em alto-DPI, entao fica desligado por
+// padrao (Windows faz bitmap-scale: borrado mas sem layout quebrado).
+function writeExeManifest(exePath, opts = {}) {
+  const app = (path.basename(exePath, path.extname(exePath)).replace(/[^A-Za-z0-9._-]/g, '') || 'App');
+  const dpi = opts.dpiAware === true
+    ? `  <application xmlns="urn:schemas-microsoft-com:asm.v3">\n` +
+      `    <windowsSettings>\n` +
+      `      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>\n` +
+      `    </windowsSettings>\n` +
+      `  </application>\n`
+    : '';
+  const xml =
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" processorArchitecture="*" name="${app}" type="win32"/>
+  <description>${app}</description>
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
+    </dependentAssembly>
+  </dependency>
+${dpi}  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/> <!-- Windows 10 e 11 -->
+    </application>
+  </compatibility>
+</assembly>
+`;
+  const file = exePath + '.manifest';
+  fs.writeFileSync(file, xml, 'utf8');
+  return file;
+}
+
 // pack: build + monta o projeto VFP (.pjx) e o EXE via foxcli (modo manifesto).
 async function cmdPack(root) {
   await cmdBuild(root);
-  const out = path.join(root, loadConfig(root).outDir);
+  const cfg = loadConfig(root);
+  const out = path.join(root, cfg.outDir);
   if (!fs.existsSync(path.join(out, 'vfp.json'))) die('nada para empacotar (defina src/main.ts ou entry no vfp.config.json)');
   log('empacotando projeto VFP (.pjx + EXE)...');
   const r = foxcli(['build', out]);
   if (!r.ok) die((r.errors || []).join('; '));
-  log(`pack OK: ${r.output || out}`);
+  const exe = r.output || path.join(out, path.basename(root) + '.exe');
+  log(`pack OK: ${exe}`);
+  // Tier-0: manifest Common Controls v6 ao lado do EXE (default on; opt-out manifest:false)
+  if (cfg.manifest !== false && /\.exe$/i.test(exe)) {
+    const mf = writeExeManifest(exe, { dpiAware: cfg.dpiAware === true });
+    log(`manifest v6 -> ${path.relative(process.cwd(), mf)} (controles nativos com tema do OS)`);
+  }
 }
 
 async function cmdRun(root) {
   await cmdBuild(root);
-  const app = path.join(root, loadConfig(root).outDir, 'app.prg');
+  const out = path.join(root, loadConfig(root).outDir);
+  const app = path.join(out, 'app.prg');
   if (!fs.existsSync(app)) die('app.prg não gerado (defina src/main.ts ou entry no vfp.config.json)');
-  const r = foxcli(['run', app, '--timeout', '60']); // app.prg linka serviços + chama main()/entry
+  // passa o dir do dist como param (tcHome): o foxcli `run` relocaliza o app.prg p/
+  // um BOOT temporario, entao SYS(16,1) nao resolveria os PRGs vizinhos. O caminho
+  // e calculado AGORA (nao baked no arquivo) -> app.prg continua portavel.
+  const r = foxcli(['run', app, out, '--timeout', '60']); // app.prg linka serviços + chama main()/entry
   process.stdout.write((r.stdout || '').replace(/\x1a/g, ''));
   if (!r.ok) die((r.errors || []).join('; '));
 }
@@ -415,4 +499,6 @@ function main() {
     default: console.error(`comando desconhecido: ${cmd}\n`); process.stdout.write(USAGE); process.exit(2);
   }
 }
-Promise.resolve().then(main).catch((e) => die(e.message));
+if (require.main === module) Promise.resolve().then(main).catch((e) => die(e.message));
+
+module.exports = { writeExeManifest, writeBootstrap, loadConfig };

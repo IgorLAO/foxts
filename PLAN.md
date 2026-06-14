@@ -20,6 +20,46 @@
 - **Orquestradores:** `foxc.js` (1 form → SCX, com oráculo), `vfp.js` (projeto inteiro: `src/ → dist/`).
 - **`@vfp/core`** = `decorators.ts` (decorators + `FormManager` + tags JSX + factories). Resolve via `baseUrl/paths` no `loadProgram`.
 
+## 🎨 UI Kit moderno — OBJETIVO ATUAL (melhorar a aparência das telas)
+
+> Meta: telas VFP com cara de 2025/26 (Win11/Fluent), geradas do TSX. Não é só funcional —
+> é uma **biblioteca de padrões visuais reutilizáveis** que evolui por iteração visual.
+
+**Loop de trabalho obrigatório** (NÃO basta "compilou"): mexeu na tela → `sh showcase/shot.sh <form>`
+(build + print REAL do VFP) → olhar o PNG e criticar (moderno? espaçamento? hierarquia? componente
+melhor?) → melhorar → recapturar. Relatório de todas as telas: `node showcase/report.js`.
+
+**Captura real (resolve "não consigo ver o VFP"):** `showcase/capture.prg` abre o SCX, mostra a janela
+(`vfp9.exe -T -C<cap.fpw>` com `SCREEN=ON`), força `RedrawWindow` e tira print via **BitBlt da tela**
+(GDI+ → PNG). foxcli `run` NÃO serve (força `SCREEN=OFF` → janela preta). `readback.prg`/`diagprops.prg`
+= dumps headless (cores aplicadas / properties do SCX).
+
+**🔑 Descoberta crítica:** **cor em DESIGN-TIME no SCX gerado NÃO aplica** no `DO FORM` (carrega
+corrompida — só o byte baixo sobrevive); **atribuição em RUNTIME aplica certo**. Por isso:
+- `hexToRGB`/`shade` emitem **número de cor do VFP** (não `"RGB()"`).
+- `applyRuntimeColors` re-emite TODA cor (form+controles) como atribuição no `Init` (path pontilhado pós-layout).
+- `prependInit` injeta no Init **depois** de `LPARAMETERS`. (Implica: "verificados" antigos nunca tiveram cor real.)
+
+**Feito (provado em print real):** tokens (light/dark + `shade()` + 3 fontes Segoe UI); `<Card title>` com
+divisória; `<FormField>` (label+input flat `SpecialEffect=1`); `<FlatButton>`/`<FormActions>` (variantes
+primary/secondary/ghost/danger coloridas, hover por `shade`, ícone); `<Grid>` zebra+`Themes=.F.`+header
+colorido; modo **flat** (header custom + controlbox Marlett + arrastar via `WM_NCLBUTTONDOWN`); chrome Win11
+(DWM cantos/dark); manifest Common-Controls v6 no `vfp pack`; `icon="save"`→`icons/*.png`; scaffold `vfp new`
+já nasce flat. Showcase: `showcase/ui-kit*.form.tsx`.
+
+**Cantos arredondados (RESOLVIDO):** `Curvature` em Container é **no-op visual**, mas em **Shape arredonda**
+(provado: `diagshape`). Então `<Card>` emite um **Shape de fundo** arredondado (surface+borda+Curvature ~22)
+e o Container fica transparente por cima segurando os filhos (z-order: shape→container→filhos). Cores do
+shape via `applyRuntimeColors`. Mesma técnica serviria p/ arredondar botões (pendente: hover teria que
+mirar o FillColor do shape, não o BackColor do container).
+
+**Limitações VFP confirmadas (no print):** header de Grid só colore com `Themes=.F.`; dark vaza em
+scrollbar/combo nativos; área vazia do grid (sem registros) não acompanha o tema.
+
+**Backlog UI (próximas iterações):** cantos arredondados (Shape de fundo?); elevação/sombra de card (fake);
+mais componentes (StatCard/Toolbar/Dialog/Sidebar/EmptyState); revisar espaçamento/tipografia por tela;
+minerar `/testesvf` (EXEs) e VFPX por padrões. (Grid "1 de N linhas" = IGNORAR por ora, decisão do dono.)
+
 ## ✅ Feito (com prova no VFP)
 - Transpilador base: funções, aritmética type-directed, controle de fluxo, strings, `this.*`, `#DEFINE`.
 - **Arrays → Collection** (`[]`/`.push`/`.length`/`xs[i]`). Oráculo `verify`.
@@ -63,9 +103,9 @@
 - ~~**Path do foxcli hardcoded**~~ ✅ **RESOLVIDO:** módulo centralizado `foxcli-path.js` com precedência: `FOXCLI` env > `FOXCLI_HOME` env > discovery relativo ao repo (../foxcli/) > fallback `C:\projectos\testesvf\foxcli\foxcli.exe`. Todos os consumidores (`foxc.js`, `vfp.js`, `verify*.js` — incluindo `verify.js` que era bare hardcode sem env override) agora fazem `require('./foxcli-path')`.
 - **Oráculo + `@vfp/core`:** `require("@vfp/core")` não resolve em runtime; `foxc.build` tolera (pula oráculo). Forms com `cases` devem importar `"../decorators"`.
 - ~~Colisão de nomes de `@Component`~~ ✅ resolvido (B3, dedupe em `finalizeFormIR`).
-- ~~Sem linking cross-file~~ ✅ resolvido (G: `app.prg` linka via `SET PROCEDURE`; `vfp pack` → PJX/EXE). **Porém** `app.prg` usa **caminhos absolutos** (`SET PROCEDURE TO (abspath)`) — não portável entre máquinas; gerar caminhos relativos + `SET DEFAULT` é melhoria futura.
+- ~~Sem linking cross-file~~ ✅ resolvido (G: `app.prg` linka via `SET PROCEDURE`; `vfp pack` → PJX/EXE). ~~**Porém** `app.prg` usa **caminhos absolutos**~~ ✅ **RESOLVIDO:** `app.prg` agora deriva `lcHome = ADDBS(JUSTPATH(SYS(16,1)))` (dir do PRG corrente) + `SET DEFAULT TO (lcHome)` e linka tudo via `lcHome + "rel\path"` — zero caminho da máquina baked no arquivo (portável EXE/PJX). Como o `foxcli run` relocaliza o app.prg p/ um BOOT temporário (SYS(16,1) apontaria p/ o temp), o `vfp run` passa o dir do dist como param `tcHome` (calculado em runtime, não no arquivo) que sobrepõe quando presente.
 - **Form com DI não valida standalone** no `foxc build` (a instanciação NOSHOW roda o `Init` → `CREATEOBJECT(serviço)` que não está linkado). Usar `vfp build` (linka tudo). 
-- `vfp.js` scaffold grava **caminho absoluto** do vfp.js nos scripts do `package.json` (não publicado/portável).
+- ~~`vfp.js` scaffold grava **caminho absoluto** do vfp.js nos scripts do `package.json`~~ ✅ **RESOLVIDO:** os scripts do scaffold agora chamam o bin `vfp` (na PATH do npm) — `"build": "vfp build"`, `watch`, `run`, `clean`, `create:form`, `create:class` — e o `foxts` entra como `devDependency` (versão lida do `package.json` deste repo). Portável, sem path da máquina.
 - ~~Decorator factories tipados como `any` para dual-use~~ ✅ resolvido: viraram `DualTag<Props>` (overload `(cfg?:P)=>Deco` 1º + `(props:P)=>JSX.Element` 2º), com o MESMO `Props` checado nos dois caminhos.
 - ~~**Variável de 1 letra `a`–`j` que recebe objeto**~~ ✅ RESOLVIDO (guarda no transpilador): `recv.prop` onde `recv` é um identificador de 1 letra a–j com tipo não-primitivo (objeto) agora é **rejeitado** com `CompileError` (linha/coluna) sugerindo nome ≥2 letras (`loRow`/`loCli`). Vale p/ qualquer `obj.prop` (não só `.first()`). Escalares de 1 letra (contador `i`, `s.length`) NÃO são afetados (tipo primitivo). Oráculo build-time `verifyguard.js` (**2/2**): rejeita objeto, aceita escalar. Ex.: `examples/guard_badvar.ts` (negativo), `examples/guard_okscalar.ts` (positivo).
 - ~~**Campo numérico vindo de `bind` tem default `""`**~~ ✅ RESOLVIDO: o default do membro de bind agora é inferido do **tipo declarado do campo** — do schema referenciado em `@Form({ validate: Schema })` (`num`→`0`, `str`→`""`, `bool`→`.F.`) ou de um `type=` no controle (`bindMemberDefault` em transpile.js). Assim `@Form({ validate })` num campo `num()` compara `0 < n` (não `"" < n`) antes de qualquer input. Oráculo `verifybinddefault.js` (**5/5**: 3 defaults na IR em build-time + 2 no VFP — `Validar()` sem input devolve a mensagem e `VARTYPE(idade)=="N"`). Ex.: `examples/cadvalida.form.tsx` (idade `num()`).
@@ -80,7 +120,7 @@ Revisão com foco no fluxo de um dev React típico (abrir no editor, salvar, ver
 1. **[CORRIGIDO — confirmar intenção] `package.json` estava inválido** e quebrava o projeto INTEIRO: linha `"build:form": "` truncada (string não terminada, edição acidental). Não era só `npm run` — **qualquer `node *.js` morria** com `ERR_INVALID_PACKAGE_CONFIG` (o Node lê o package.json mais próximo p/ resolver `type`), inclusive `node test.js`. Restaurei o script a partir do README (linha 160: `foxc build examples/dias.form.ts -o dist/frmdiasts.scx`). Verificar se a intenção da edição era outra.
 2. **Sem `tsconfig.json` na raiz do repo** — o build funciona porque `loadProgram` (transpile.js:1192) injeta as opções (jsx Preserve, experimentalDecorators, strict, paths `@vfp/core`→`decorators`) **por código**, mas o editor não as vê: abrir `examples/*.tsx` ou `showcase/*.tsx` no VS Code dá erro em todo JSX/decorator e `Cannot find module '@vfp/core'`; IntelliSense zero. É o 1º contato de qualquer dev com o repo. Fix barato: criar `tsconfig.json` na raiz espelhando as opções do `loadProgram` (include `examples`, `showcase`); idealmente o `loadProgram` passa a LER esse tsconfig (fonte única, sem drift).
 3. **`vfp watch` ignora `.tsx`** — vfp.js:316: `if (f && !/\.ts$/.test(f)) return;` não casa `.tsx`, então salvar um `.form.tsx` (o artefato dominante do framework!) **não dispara rebuild**; quebra o loop save→build que o watch existe p/ dar. Fix: `/\.tsx?$/`. Bônus no mesmo lugar: mudanças em `vfp.theme.json`/`vfp.messages.json`/`vfp.config.json` também não disparam rebuild (e estão fora de `src/`); e considerar alias `dev` → `watch` no scaffold (memória muscular de React).
-4. **tsconfig do scaffold (`vfp new`) sem `"jsx": "preserve"`** — vfp.js:108 (`tplTsconfig`): o template gera `.form.tsx` mas o tsconfig emitido não habilita JSX → projeto recém-criado já nasce com o form de exemplo vermelho no editor ("Cannot use JSX unless the '--jsx' flag is provided"). Faltam também `include` de `globals.d.ts` (p/ `console.log` tipado) e o `paths` usa **caminho absoluto desta máquina** (mesma família do package.json absoluto já anotado na dívida).
+4. **tsconfig do scaffold (`vfp new`) sem `"jsx": "preserve"`** — vfp.js:108 (`tplTsconfig`): o template gera `.form.tsx` mas o tsconfig emitido não habilita JSX → projeto recém-criado já nasce com o form de exemplo vermelho no editor ("Cannot use JSX unless the '--jsx' flag is provided"). Faltam também `include` de `globals.d.ts` (p/ `console.log` tipado) e o `paths` usa **caminho absoluto desta máquina** (mesma família do package.json absoluto já anotado na dívida). — ✅ **RESOLVIDO** (a parte dos caminhos absolutos): o `tplTsconfig` aponta `paths: { '@vfp/core': ['node_modules/foxts/decorators'] }` e `files: ['node_modules/foxts/globals.d.ts']` (casando com o `devDependency foxts` do scaffold); `jsx: 'preserve'` já vinha no template. Portável, sem path da máquina.
 5. **Erros de tipo de arquivos importados são engolidos** — transpile.js:1208 filtra `diags.filter(d => d.file === sf)`: um erro de tipagem num model/serviço importado pelo entry **não aparece** (só o arquivo de entrada é checado). Num fluxo TS isso surpreende: o dev confia que "compilou = tipos ok" cross-file. Decidir: reportar diagnósticos de todos os arquivos do projeto (exceto `node_modules`/`decorators.ts`) ou documentar a limitação.
 6. **`foxc.js` não trata `.tsx` ao derivar nomes** — foxc.js:72: `path.basename(tsPath, '.ts')` não remove `.tsx` → IR vai p/ `dist/grid.form.tsx.json` (e o `.replace(/\.form$/...)` não pega). Cosmético, mas confunde quem inspeciona `dist/` (o README do showcase aponta a IR como "o melhor lugar para ver o que o JSX virou").
 7. **Repo sem git** — o diretório não é repositório (há `.gitignore`, mas nunca houve `git init`). Sem histórico, diff, branch ou bisect — o acidente do item 1 não teria diagnóstico via `git diff` nem rollback. Sugestão: `git init` + commit inicial (o `.gitignore` já cobre `node_modules/` e `dist/`).
