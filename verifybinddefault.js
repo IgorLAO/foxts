@@ -21,7 +21,7 @@ const { execFileSync } = require('child_process');
 const layout = require('./layout');
 const { transpileForm, finalizeFormIR } = require('./transpile');
 
-const FOXCLI = process.env.FOXCLI || 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const FOXCLI = require('./foxcli-path');
 
 (async () => {
   if (process.env.FOXTS_LAYOUT !== 'flex' && await layout.loadYogaEngine()) layout.setEngine('yoga');
