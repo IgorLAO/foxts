@@ -1,29 +1,84 @@
-* test_flow.prg — percorre o FLUXO INTEIRO no VFP (NOSHOW) e confere o estado.
-LOCAL loF, r
-r = ""
-DO FORM ("C:\projectos\testesvf\foxts\showcase\totem-app\Totem.scx") NAME loF NOSHOW
+* test_flow.prg — dirige TODAS as funções do totem (NOSHOW) e confere o estado.
+* Cobre: navegação (home->modo->cardapio->pagamento->aprovado->home), +/- por produto,
+* total, sub que não fica negativo, bloqueio de pagamento com carrinho vazio, ticks do
+* pagamento -> aprovado, e limpar. Uso (foxcli): foxcli run test_flow.prg --timeout 120
+LPARAMETERS tcOut
+LOCAL lcDir
+lcDir = "C:\projectos\testesvf\foxts\showcase\totem-app\"
+IF EMPTY(m.tcOut)
+  tcOut = lcDir + "dist\flow.test.txt"
+ENDIF
+SET DEFAULT TO (lcDir)
+LOCAL loF, lcR, i
+lcR = "=== TESTE DE FLUXO / FUNCOES DO TOTEM ===" + CRLF()
+DO FORM (lcDir + "Totem.scx") NAME loF NOSHOW
 
-r = r + "inicio step=" + TRANSFORM(loF.step) + " (esp 1)" + CHR(13)
-loF.telaClick()                 && home -> modo
-r = r + "telaClick -> step=" + TRANSFORM(loF.step) + " (esp 2)  hComer.vis=" + TRANSFORM(loF.hComer.Visible) + CHR(13)
-loF.escolherComer()             && modo -> cardapio
-r = r + "escolherComer -> step=" + TRANSFORM(loF.step) + " (esp 3)  viagem=" + TRANSFORM(loF.viagem) + "  hAddBurger.vis=" + TRANSFORM(loF.hAddBurger.Visible) + CHR(13)
+lcR = lcR + ai("step inicial (home)", loF.step, 1)
+
+loF.irModo()
+lcR = lcR + ai("irModo -> step modo", loF.step, 2)
+lcR = lcR + al("  pModo visivel", loF.pModo.visible)
+lcR = lcR + al("  pHome oculto", NOT loF.pHome.visible)
+
+loF.escolherComer()
+lcR = lcR + ai("escolherComer -> step cardapio", loF.step, 3)
+lcR = lcR + al("  viagem = comer aqui (.F.)", NOT loF.viagem)
+
 loF.addBurger()
 loF.addBurger()
-loF.addRefri()                  && 2*25 + 9 = 59
-r = r + "2 burger + 1 refri: total=" + TRANSFORM(loF.total) + " (esp 59)  lblTotal='" + loF.lblTotal.Caption + "'  qBurger='" + loF.lblQBurger.Caption + "'" + CHR(13)
-loF.irPagamento()               && cardapio -> pagamento
-r = r + "irPagamento -> step=" + TRANSFORM(loF.step) + " (esp 4)  lblTotalPag='" + loF.lblTotalPag.Caption + "'  hPix.vis=" + TRANSFORM(loF.hPix.Visible) + CHR(13)
-loF.processar()                 && inicia animacao
-r = r + "processar -> status='" + loF.lblStatusPag.Caption + "'" + CHR(13)
-loF.tick()
-loF.tick()
-loF.tick()
-loF.tick()                      && termina -> aprovado
-r = r + "4 ticks -> step=" + TRANSFORM(loF.step) + " (esp 5)  total=" + TRANSFORM(loF.total) + " (esp 0)" + CHR(13)
-loF.telaClick()                 && aprovado -> home
-r = r + "telaClick -> step=" + TRANSFORM(loF.step) + " (esp 1)  hPagar.vis=" + TRANSFORM(loF.hPagar.Visible) + " (esp .F.)" + CHR(13)
+loF.addRefri()
+lcR = lcR + ai("2x Burger + 1x Refri -> total", loF.total, 59)
+lcR = lcR + as("  lblTotal", loF.pCardapio.lblTotal.caption, "R$ 59")
+lcR = lcR + as("  lblQBurger", loF.pCardapio.cnt5.lblQBurger.caption, "2")
+lcR = lcR + as("  lblQRefri", loF.pCardapio.cnt11.lblQRefri.caption, "1")
 
-? r
-loF = .NULL.
-RETURN
+loF.subBurger()
+lcR = lcR + ai("subBurger -> total", loF.total, 34)
+loF.subBatata()
+lcR = lcR + ai("subBatata nao fica negativo (qBatata)", loF.qBatata, 0)
+
+loF.irPagamento()
+lcR = lcR + ai("irPagamento -> step pagamento", loF.step, 4)
+lcR = lcR + as("  lblTotalPag", loF.pPagamento.lblTotalPag.caption, "R$ 34")
+
+loF.processar()
+lcR = lcR + as("  status processando", loF.pPagamento.lblStatusPag.caption, "Processando pagamento...")
+FOR i = 1 TO 4
+  loF.tick()
+ENDFOR
+lcR = lcR + ai("4 ticks -> aprovado", loF.step, 5)
+lcR = lcR + al("  pAprovado visivel", loF.pAprovado.visible)
+
+loF.voltarHome()
+lcR = lcR + ai("voltarHome -> step home", loF.step, 1)
+lcR = lcR + ai("  carrinho zerado (total)", loF.total, 0)
+lcR = lcR + as("  lblQBurger zerado", loF.pCardapio.cnt5.lblQBurger.caption, "0")
+
+* bloqueio: pagar com carrinho vazio nao avanca
+loF.irModo()
+loF.escolherLevar()
+lcR = lcR + al("escolherLevar viagem = levar (.T.)", loF.viagem)
+loF.irPagamento()
+lcR = lcR + ai("irPagamento c/ carrinho vazio NAO avanca (step)", loF.step, 3)
+lcR = lcR + al("  mostra aviso", NOT EMPTY(loF.pCardapio.lblStatusCard.caption))
+
+loF.Release()
+lcR = lcR + CRLF() + IIF("FALHA" $ lcR, ">>> HOUVE FALHA", ">>> TODOS OS CHECKS PASSARAM")
+STRTOFILE(lcR, m.tcOut, 0)
+QUIT
+
+FUNCTION ai(tcName, tnGot, tnExp)
+RETURN IIF(tnGot = tnExp, "[OK]   ", "[FALHA] ") + tcName + " = " + TRANSFORM(tnGot) + ;
+  IIF(tnGot = tnExp, "", " (esperado " + TRANSFORM(tnExp) + ")") + CRLF()
+
+FUNCTION as(tcName, tcGot, tcExp)
+LOCAL llOk
+llOk = ALLTRIM(tcGot) == ALLTRIM(tcExp)
+RETURN IIF(llOk, "[OK]   ", "[FALHA] ") + tcName + " = [" + ALLTRIM(tcGot) + "]" + ;
+  IIF(llOk, "", " (esperado [" + ALLTRIM(tcExp) + "])") + CRLF()
+
+FUNCTION al(tcName, tlGot)
+RETURN IIF(tlGot, "[OK]   ", "[FALHA] ") + tcName + CRLF()
+
+FUNCTION CRLF
+RETURN CHR(13) + CHR(10)

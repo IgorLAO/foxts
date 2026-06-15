@@ -1506,6 +1506,36 @@ function prependInit(ir, code) {
   ir.methods.Init = lines.join('\n');
 }
 
+// resolveNestedControlRefs: nos MÉTODOS, `this.lblTotal` (escrito pelo autor) vira
+// `ThisForm.lblTotal` — mas se o controle está ANINHADO num Container, o caminho real é
+// `ThisForm.pCardapio.lblTotal`. Sem resolver, o acesso falha em runtime ("propriedade
+// não encontrada"). Aqui reescrevemos `This[Form].<nome>` -> `This[Form].<caminho.pontilhado>`
+// para todo controle com pai (nomes de controle são únicos; membros do form e métodos não
+// estão no mapa, então `This.total`/`This.mostrar()` ficam intactos). Passe único (regex com
+// callback) p/ não re-escanear o caminho inserido (que contém nomes de container).
+function resolveNestedControlRefs(ir) {
+  if (!ir.controls || !ir.methods) return;
+  const byName = {};
+  for (const c of ir.controls) if (c.name) byName[c.name.toLowerCase()] = c;
+  const pathOf = (c) => {
+    const parts = [c.name];
+    let p = c.parent && byName[c.parent.toLowerCase()];
+    while (p) { parts.unshift(p.name); p = p.parent && byName[p.parent.toLowerCase()]; }
+    return parts.join('.');
+  };
+  const map = {}; // só controles ANINHADOS (com pai) — top-level já resolve por This.<nome>
+  for (const c of ir.controls) if (c.name && c.parent) map[c.name.toLowerCase()] = pathOf(c);
+  if (!Object.keys(map).length) return;
+  const re = /\bThis(Form)?\.(\w+)/g;
+  for (const k of Object.keys(ir.methods)) {
+    if (typeof ir.methods[k] !== 'string') continue;
+    ir.methods[k] = ir.methods[k].replace(re, (m, f, name) => {
+      const path = map[name.toLowerCase()];
+      return path ? 'This' + (f || '') + '.' + path : m;
+    });
+  }
+}
+
 // applyRuntimeColors: cor de DESIGN no SCX gerado NÃO aplica no DO FORM (carrega
 // corrompida — só o byte baixo sobrevive); atribuição em RUNTIME aplica certo. Então
 // re-emitimos toda cor (form + controles, BackColor/ForeColor/BorderColor/FillColor)
@@ -2265,15 +2295,15 @@ function sidebarItemLeaf(model, ctx, st) {
   const fg = active ? hexToRGB(THEME.primary) : hexToRGB(THEME.onSurface);
   const h = typeof a.height === 'number' ? a.height : 36;
   const shp = 'shp' + name, acc = 'acc' + name;
-  const enter = `This.Parent.${shp}.BackStyle = 1\nThis.Parent.${shp}.FillColor = ${hoverBg}\nThis.Parent.${shp}.BackColor = ${hoverBg}`;
+  const enter = `This.Parent.${shp}.BackStyle = 1\nThis.Parent.${shp}.FillStyle = 0\nThis.Parent.${shp}.FillColor = ${hoverBg}\nThis.Parent.${shp}.BackColor = ${hoverBg}`;
   const leave = active
     ? `This.Parent.${shp}.FillColor = ${activeBg}\nThis.Parent.${shp}.BackColor = ${activeBg}`
-    : `This.Parent.${shp}.BackStyle = 0`;
+    : `This.Parent.${shp}.BackStyle = 0\nThis.Parent.${shp}.FillStyle = 1`;
   return { w: typeof a.width === 'number' ? a.width : 160, h, grow: 0, alignSelf: 'stretch',
     place: (x, y, W, H) => {
       // fundo arredondado (visível no hover/ativo)
       const shape = { type: 'shape', name: shp, left: x, top: y, width: W, height: H,
-        properties: { BackStyle: active ? 1 : 0, FillStyle: 0, Curvature: 10, BorderWidth: 0 } };
+        properties: { BackStyle: active ? 1 : 0, FillStyle: active ? 0 : 1, Curvature: 10, BorderWidth: 0 } };
       if (active) { shape.properties.BackColor = activeBg; shape.properties.FillColor = activeBg; }
       st.ir.controls.push(shape);
       // barra de acento à esquerda (só no ativo): retângulo fino primary
@@ -2334,15 +2364,17 @@ function flatButtonLeaf(model, ctx, st) {
   // Init por applyRuntimeColors. Resting fill = bg (ghost = sem preenchimento, só borda).
   const shp = 'shp' + name;
   // resting do shape: filled => BackStyle 1; ghost => BackStyle 0 (transparente, só borda)
-  const restEnter = `This.Parent.${shp}.BackStyle = 1\nThis.Parent.${shp}.FillColor = ${hover}\nThis.Parent.${shp}.BackColor = ${hover}`;
+  // hover liga fill sólido (FillStyle 0); repouso sem-bg volta a transparente (FillStyle 1),
+  // senão o shape sem FillColor pintaria PRETO (FillStyle 0 = sólido com cor default preta).
+  const restEnter = `This.Parent.${shp}.BackStyle = 1\nThis.Parent.${shp}.FillStyle = 0\nThis.Parent.${shp}.FillColor = ${hover}\nThis.Parent.${shp}.BackColor = ${hover}`;
   const restLeave = bg
     ? `This.Parent.${shp}.FillColor = ${bg}\nThis.Parent.${shp}.BackColor = ${bg}`
-    : `This.Parent.${shp}.BackStyle = 0`;
+    : `This.Parent.${shp}.BackStyle = 0\nThis.Parent.${shp}.FillStyle = 1`;
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => {
     // SHAPE de fundo arredondado (irmão do container, atrás dele). Curvature ~8 = cantos
     // suaves. Filled: BackStyle 1 + Fill/BackColor = bg. Ghost: transparente + borda.
     const shape = { type: 'shape', name: shp, left: x, top: y, width: W, height: H,
-      properties: { BackStyle: bg ? 1 : 0, FillStyle: 0, Curvature: 8, BorderWidth: outline ? 1 : (bg ? 0 : 1) } };
+      properties: { BackStyle: bg ? 1 : 0, FillStyle: bg ? 0 : 1, Curvature: 8, BorderWidth: outline ? 1 : (bg ? 0 : 1) } };
     if (bg) { shape.properties.BackColor = bg; shape.properties.FillColor = bg; }
     if (outline) shape.properties.BorderColor = border;
     else if (bg) shape.properties.BorderColor = bg; // borda = fill (sem moldura visível)
@@ -2523,6 +2555,7 @@ function transpileForm(entry, opts = {}) {
       }).join('\n');
       ir.methods.Init = ir.methods.Init ? ir.methods.Init + '\n' + fix : fix;
     }
+    resolveNestedControlRefs(ir); // this.<ctrl> aninhado -> caminho pontilhado (antes das cores)
     applyFlatChrome(ir);   // modo flat: header custom + controlbox (se token flat)
     applyRuntimeColors(ir); // cores no Init (design-prop de cor não aplica no SCX)
     applyWindowChrome(ir); // Tier-0: chrome Win11 (cantos/dark) via DWM, se token win11

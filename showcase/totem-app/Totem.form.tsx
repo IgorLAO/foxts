@@ -1,35 +1,33 @@
-// Totem.form.tsx — o totem COMPLETO e moderno num form só. Fundo renderizado (canvas)
-// + overlay absoluto de controles transparentes (hotspots clicáveis e labels dinâmicos).
-// Fluxo: Home -> Modo de entrega -> Cardápio (interativo) -> Pagamento -> Aprovado -> Home.
-// Cada botão tem função; total/quantidades/status são estado real do form.
-import { Form, FoxForm, View, Image, Label, Shape, Timer } from "@vfp/core";
+// Totem.form.tsx — totem de autoatendimento de alimentação, REFEITO com o FoxTS UI Kit
+// (componentes REAIS: Card / FlatButton / Label / Shape), não mais imagem de fundo +
+// hotspots transparentes. 5 telas = 5 <Container> sobrepostos (View absolute) alternados
+// por visibilidade. Fluxo: Home → Modo de entrega → Cardápio → Pagamento → Aprovado.
+// Cada botão tem função real; quantidades/total/status são estado do form. Visual 100%
+// do tema (totem-app/vfp.theme.json) — identidade de food (vermelho), janela fechável.
+import { Form, FoxForm, View, Container, Row, Column, Card, FlatButton, Label, Shape, Timer } from "@vfp/core";
 
 @Form({
-  caption: "Totem Alimentacao",
-  width: 612,
-  height: 956,
-  props: { BackColor: "RGB(250, 250, 250)", AutoCenter: true, WindowType: 1 },
+  caption: "FoxFood - Totem",
+  width: 600,
+  height: 860,
+  props: { AutoCenter: true, WindowType: 1 },
 })
 export class Totem extends FoxForm {
-  step: number = 1; // 1 home, 2 modo, 3 cardapio, 4 pagamento, 5 aprovado
+  step: number = 1; // 1 home · 2 modo · 3 cardapio · 4 pagamento · 5 aprovado
   viagem: boolean = false;
   qBurger: number = 0; qBatata: number = 0; qRefri: number = 0; qShake: number = 0;
   total: number = 0; paso: number = 0;
 
   Init(): void { this.mostrar(); }
 
-  // clique no fundo: home->modo, aprovado->home (nas outras telas, os hotspots cuidam)
-  telaClick(): void {
-    if (this.step === 1) { this.step = 2; this.mostrar(); return; }
-    if (this.step === 5) { this.step = 1; this.limpar(); this.mostrar(); }
-  }
-
-  // --- modo de entrega ---
-  escolherComer(): void { this.viagem = false; this.step = 3; this.mostrar(); }
-  escolherLevar(): void { this.viagem = true; this.step = 3; this.mostrar(); }
+  // --- navegação ---
+  irModo(): void { this.step = 2; this.mostrar(); }
+  escolherComer(): void { this.viagem = false; this.step = 3; this.refresh(); this.mostrar(); }
+  escolherLevar(): void { this.viagem = true; this.step = 3; this.refresh(); this.mostrar(); }
   cancelarModo(): void { this.step = 1; this.mostrar(); }
+  voltarHome(): void { this.step = 1; this.limpar(); this.mostrar(); }
 
-  // --- cardapio: + / - por produto ---
+  // --- cardápio: + / - por produto ---
   addBurger(): void { this.qBurger = this.qBurger + 1; this.refresh(); }
   subBurger(): void { if (this.qBurger > 0) { this.qBurger = this.qBurger - 1; } this.refresh(); }
   addBatata(): void { this.qBatata = this.qBatata + 1; this.refresh(); }
@@ -54,102 +52,136 @@ export class Totem extends FoxForm {
   }
 
   irPagamento(): void {
-    if (this.total <= 0) { this.lblStatusCard.caption = "Adicione itens ao pedido"; return; }
+    if (this.total <= 0) { this.lblStatusCard.caption = "Adicione itens ao pedido para continuar."; return; }
     this.step = 4;
     this.lblTotalPag.caption = "R$ " + this.total;
-    this.lblStatusPag.caption = "";
-    this.shpBarPag.width = 4;
+    this.lblStatusPag.caption = "Escolha a forma de pagamento";
+    this.shpBarPag.width = 2;
     this.mostrar();
   }
   cancelarPag(): void { this.step = 3; this.mostrar(); }
 
-  // --- pagamento: qualquer metodo processa (mock) ---
+  // --- pagamento (mock): qualquer método processa com barra de progresso ---
   processar(): void {
     this.lblStatusPag.caption = "Processando pagamento...";
-    this.paso = 0; this.shpBarPag.width = 4; this.tmr.enabled = true;
+    this.paso = 0; this.shpBarPag.width = 2; this.tmr.enabled = true;
   }
   tick(): void {
     this.paso = this.paso + 1;
-    this.shpBarPag.width = this.shpBarPag.width + 120;
+    this.shpBarPag.width = this.shpBarPag.width + 115;
     if (this.paso < 4) { return; }
     this.tmr.enabled = false;
     this.step = 5; this.mostrar();
-    this.limpar();
   }
 
   // --- visibilidade por tela ---
   ocultarTudo(): void {
-    this.hComer.visible = false; this.hLevar.visible = false; this.hCancelModo.visible = false;
-    this.hSubBurger.visible = false; this.hAddBurger.visible = false; this.lblQBurger.visible = false;
-    this.hSubBatata.visible = false; this.hAddBatata.visible = false; this.lblQBatata.visible = false;
-    this.hSubRefri.visible = false; this.hAddRefri.visible = false; this.lblQRefri.visible = false;
-    this.hSubShake.visible = false; this.hAddShake.visible = false; this.lblQShake.visible = false;
-    this.lblTotal.visible = false; this.lblStatusCard.visible = false; this.hLimpar.visible = false; this.hPagar.visible = false;
-    this.lblTotalPag.visible = false; this.hCredito.visible = false; this.hDebito.visible = false; this.hPix.visible = false;
-    this.lblStatusPag.visible = false; this.shpBarPag.visible = false; this.hCancelPag.visible = false;
+    this.pHome.visible = false; this.pModo.visible = false; this.pCardapio.visible = false;
+    this.pPagamento.visible = false; this.pAprovado.visible = false;
   }
-  verModo(): void { this.hComer.visible = true; this.hLevar.visible = true; this.hCancelModo.visible = true; }
-  verCardapio(): void {
-    this.hSubBurger.visible = true; this.hAddBurger.visible = true; this.lblQBurger.visible = true;
-    this.hSubBatata.visible = true; this.hAddBatata.visible = true; this.lblQBatata.visible = true;
-    this.hSubRefri.visible = true; this.hAddRefri.visible = true; this.lblQRefri.visible = true;
-    this.hSubShake.visible = true; this.hAddShake.visible = true; this.lblQShake.visible = true;
-    this.lblTotal.visible = true; this.lblStatusCard.visible = true; this.hLimpar.visible = true; this.hPagar.visible = true;
-  }
-  verPagamento(): void {
-    this.lblTotalPag.visible = true; this.hCredito.visible = true; this.hDebito.visible = true; this.hPix.visible = true;
-    this.lblStatusPag.visible = true; this.shpBarPag.visible = true; this.hCancelPag.visible = true;
-  }
-
   mostrar(): void {
     this.ocultarTudo();
     switch (this.step) {
-      case 1: this.tela.picture = "C:/projectos/testesvf/foxts/showcase/totem-app/screens/home.png"; break;
-      case 2: this.tela.picture = "C:/projectos/testesvf/foxts/showcase/totem-app/screens/modo.png"; this.verModo(); break;
-      case 3: this.tela.picture = "C:/projectos/testesvf/foxts/showcase/totem-app/screens/cardapio.png"; this.verCardapio(); break;
-      case 4: this.tela.picture = "C:/projectos/testesvf/foxts/showcase/totem-app/screens/pagamento.png"; this.verPagamento(); break;
-      case 5: this.tela.picture = "C:/projectos/testesvf/foxts/showcase/totem-app/screens/aprovado.png"; break;
+      case 1: this.pHome.visible = true; break;
+      case 2: this.pModo.visible = true; break;
+      case 3: this.pCardapio.visible = true; break;
+      case 4: this.pPagamento.visible = true; break;
+      case 5: this.pAprovado.visible = true; break;
     }
   }
 
   render() {
     return (
-      <View absolute width={600} height={920}>
-        <Image name="tela" src="C:/projectos/testesvf/foxts/showcase/totem-app/screens/home.png" left={0} top={0} width={600} height={920} onClick="telaClick" />
+      <View absolute width={600} height={860} padding={0}>
+        {/* ───────────────── HOME ───────────────── */}
+        <Container name="pHome" color="bg" borderColor="bg" left={0} top={0} width={600} height={860}
+          align="center" justify="center" gap={18} padding={48}>
+          <Label caption="FoxFood" transparent bold fontSize={46} textColor="primary" textAlign="center" width={460} height={64} />
+          <Label caption="Autoatendimento" transparent fontSize={18} textColor="muted" textAlign="center" width={460} height={28} />
+          <Label caption="Peca em segundos, sem fila." transparent fontSize={14} textColor="muted" textAlign="center" width={460} height={24} />
+          <FlatButton caption="Toque para comecar" variant="primary" onClick="irModo" width={320} height={60} />
+        </Container>
 
-        {/* modo de entrega */}
-        <Label name="hComer" caption="" transparent left={40} top={280} width={240} height={300} onClick="escolherComer" />
-        <Label name="hLevar" caption="" transparent left={320} top={280} width={240} height={300} onClick="escolherLevar" />
-        <Label name="hCancelModo" caption="" transparent left={180} top={660} width={240} height={72} onClick="cancelarModo" />
+        {/* ───────────────── MODO DE ENTREGA ───────────────── */}
+        <Container name="pModo" color="bg" borderColor="bg" left={0} top={0} width={600} height={860}
+          align="center" justify="center" gap={22} padding={40}>
+          <Label caption="Como prefere?" transparent bold fontSize={28} textColor="onSurface" textAlign="center" width={500} height={40} />
+          <Row gap={20} align="center">
+            <FlatButton caption="Comer aqui" variant="primary" onClick="escolherComer" width={210} height={120} />
+            <FlatButton caption="Para levar" variant="secondary" onClick="escolherLevar" width={210} height={120} />
+          </Row>
+          <FlatButton caption="Voltar" variant="ghost" onClick="cancelarModo" width={160} height={42} />
+        </Container>
 
-        {/* cardapio — linha 1..4 */}
-        <Label name="hSubBurger" caption="" transparent left={394} top={142} width={52} height={52} onClick="subBurger" />
-        <Label name="lblQBurger" caption="0" transparent textAlign="center" bold fontSize={22} textColor="#111827" left={448} top={154} width={64} height={28} />
-        <Label name="hAddBurger" caption="" transparent left={514} top={142} width={52} height={52} onClick="addBurger" />
-        <Label name="hSubBatata" caption="" transparent left={394} top={252} width={52} height={52} onClick="subBatata" />
-        <Label name="lblQBatata" caption="0" transparent textAlign="center" bold fontSize={22} textColor="#111827" left={448} top={264} width={64} height={28} />
-        <Label name="hAddBatata" caption="" transparent left={514} top={252} width={52} height={52} onClick="addBatata" />
-        <Label name="hSubRefri" caption="" transparent left={394} top={362} width={52} height={52} onClick="subRefri" />
-        <Label name="lblQRefri" caption="0" transparent textAlign="center" bold fontSize={22} textColor="#111827" left={448} top={374} width={64} height={28} />
-        <Label name="hAddRefri" caption="" transparent left={514} top={362} width={52} height={52} onClick="addRefri" />
-        <Label name="hSubShake" caption="" transparent left={394} top={472} width={52} height={52} onClick="subShake" />
-        <Label name="lblQShake" caption="0" transparent textAlign="center" bold fontSize={22} textColor="#111827" left={448} top={484} width={64} height={28} />
-        <Label name="hAddShake" caption="" transparent left={514} top={472} width={52} height={52} onClick="addShake" />
-        <Label name="lblTotal" caption="R$ 0" transparent textAlign="right" bold fontSize={30} textColor="#ed1e26" left={320} top={584} width={236} height={40} />
-        <Label name="lblStatusCard" caption="" transparent bold fontSize={16} textColor="#283593" left={28} top={668} width={544} height={26} />
-        <Label name="hLimpar" caption="" transparent left={24} top={720} width={250} height={66} onClick="limpar" />
-        <Label name="hPagar" caption="" transparent left={300} top={720} width={276} height={66} onClick="irPagamento" />
+        {/* ───────────────── CARDAPIO ───────────────── */}
+        <Container name="pCardapio" color="bg" borderColor="bg" left={0} top={0} width={600} height={860}
+          align="stretch" gap={12} padding={24}>
+          <Label caption="Monte seu pedido" transparent bold fontSize={24} textColor="onSurface" width={540} height={36} />
 
-        {/* pagamento */}
-        <Label name="lblTotalPag" caption="R$ 0" transparent textAlign="center" bold fontSize={46} textColor="#ed1e26" left={100} top={188} width={400} height={56} />
-        <Label name="hCredito" caption="" transparent left={60} top={350} width={480} height={78} onClick="processar" />
-        <Label name="hDebito" caption="" transparent left={60} top={448} width={480} height={78} onClick="processar" />
-        <Label name="hPix" caption="" transparent left={60} top={546} width={480} height={78} onClick="processar" />
-        <Label name="lblStatusPag" caption="" transparent textAlign="center" bold fontSize={18} textColor="#283593" left={60} top={668} width={480} height={26} />
-        <Shape name="shpBarPag" left={60} top={700} width={4} height={14} color="#16a34a" rounded={7} />
-        <Label name="hCancelPag" caption="" transparent left={180} top={740} width={240} height={68} onClick="cancelarPag" />
+          <Card title="Burger Classico - R$ 25">
+            <Row gap={14} align="center" justify="end">
+              <FlatButton caption="-" variant="secondary" onClick="subBurger" width={48} height={40} />
+              <Label name="lblQBurger" caption="0" transparent bold fontSize={22} textColor="onSurface" textAlign="center" width={48} height={30} />
+              <FlatButton caption="+" variant="primary" onClick="addBurger" width={48} height={40} />
+            </Row>
+          </Card>
+          <Card title="Batata Frita - R$ 15">
+            <Row gap={14} align="center" justify="end">
+              <FlatButton caption="-" variant="secondary" onClick="subBatata" width={48} height={40} />
+              <Label name="lblQBatata" caption="0" transparent bold fontSize={22} textColor="onSurface" textAlign="center" width={48} height={30} />
+              <FlatButton caption="+" variant="primary" onClick="addBatata" width={48} height={40} />
+            </Row>
+          </Card>
+          <Card title="Refrigerante - R$ 9">
+            <Row gap={14} align="center" justify="end">
+              <FlatButton caption="-" variant="secondary" onClick="subRefri" width={48} height={40} />
+              <Label name="lblQRefri" caption="0" transparent bold fontSize={22} textColor="onSurface" textAlign="center" width={48} height={30} />
+              <FlatButton caption="+" variant="primary" onClick="addRefri" width={48} height={40} />
+            </Row>
+          </Card>
+          <Card title="Milkshake - R$ 19">
+            <Row gap={14} align="center" justify="end">
+              <FlatButton caption="-" variant="secondary" onClick="subShake" width={48} height={40} />
+              <Label name="lblQShake" caption="0" transparent bold fontSize={22} textColor="onSurface" textAlign="center" width={48} height={30} />
+              <FlatButton caption="+" variant="primary" onClick="addShake" width={48} height={40} />
+            </Row>
+          </Card>
 
-        <Timer name="tmr" disabled left={0} top={0} width={0} height={0} interval={260} onTimer="tick" />
+          <Row gap={10} align="center" justify="between">
+            <Label caption="Total" transparent fontSize={18} textColor="muted" width={120} height={36} />
+            <Label name="lblTotal" caption="R$ 0" transparent bold fontSize={30} textColor="primary" textAlign="right" width={300} height={40} />
+          </Row>
+          <Label name="lblStatusCard" caption="" transparent bold fontSize={13} textColor="primary" width={540} height={22} />
+          <Row gap={12} align="center">
+            <FlatButton caption="Limpar" variant="secondary" onClick="limpar" width={150} height={50} />
+            <FlatButton caption="Pagar" variant="primary" onClick="irPagamento" grow={1} height={50} />
+          </Row>
+        </Container>
+
+        {/* ───────────────── PAGAMENTO ───────────────── */}
+        <Container name="pPagamento" color="bg" borderColor="bg" left={0} top={0} width={600} height={860}
+          align="center" gap={16} padding={36}>
+          <Label caption="Pagamento" transparent bold fontSize={26} textColor="onSurface" textAlign="center" width={500} height={38} />
+          <Label caption="Total a pagar" transparent fontSize={15} textColor="muted" textAlign="center" width={500} height={24} />
+          <Label name="lblTotalPag" caption="R$ 0" transparent bold fontSize={48} textColor="primary" textAlign="center" width={500} height={64} />
+          <FlatButton caption="Cartao de credito" variant="primary" onClick="processar" width={420} height={56} />
+          <FlatButton caption="Cartao de debito" variant="primary" onClick="processar" width={420} height={56} />
+          <FlatButton caption="Pix" variant="primary" onClick="processar" width={420} height={56} />
+          <Label name="lblStatusPag" caption="" transparent bold fontSize={15} textColor="onSurface" textAlign="center" width={460} height={24} />
+          <Shape name="shpBarPag" color="success" rounded={6} width={2} height={12} left={90} top={612} />
+          <FlatButton caption="Cancelar" variant="ghost" onClick="cancelarPag" width={180} height={44} />
+        </Container>
+
+        {/* ───────────────── APROVADO ───────────────── */}
+        <Container name="pAprovado" color="bg" borderColor="bg" left={0} top={0} width={600} height={860}
+          align="center" justify="center" gap={18} padding={48}>
+          <Shape color="success" rounded={99} width={96} height={96} />
+          <Label caption="Pedido aprovado!" transparent bold fontSize={32} textColor="success" textAlign="center" width={500} height={46} />
+          <Label caption="Retire seu pedido na esteira." transparent fontSize={15} textColor="muted" textAlign="center" width={500} height={24} />
+          <FlatButton caption="Novo pedido" variant="primary" onClick="voltarHome" width={300} height={56} />
+        </Container>
+
+        <Timer name="tmr" disabled interval={240} onTimer="tick" left={0} top={0} width={0} height={0} />
       </View>
     );
   }

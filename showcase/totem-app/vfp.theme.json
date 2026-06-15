@@ -1,0 +1,19 @@
+{
+  "font": "Segoe UI",
+  "fontTitle": "Segoe UI Semibold",
+  "fontBody": "Segoe UI",
+  "fontData": "Segoe UI",
+  "mode": "light",
+  "win11": true,
+  "flat": true,
+  "colors": {
+    "primary": "#e11d2e",
+    "success": "#16a34a",
+    "surface": "#ffffff",
+    "onSurface": "#1f2937",
+    "border": "#f0e3da",
+    "altRow": "#fdf2ec",
+    "muted": "#6b7280",
+    "bg": "#fff7f2"
+  }
+}
