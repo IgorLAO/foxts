@@ -86,6 +86,13 @@ function gridHeaders() {
     } else if (ctrl.type === 'textbox') {
       c.fillStyle = rgb(p.BackColor) || '#ffffff'; rrect(c, x, y, w, h, 3); c.fill(); // cor real do token
       c.strokeStyle = 'rgba(148,163,184,0.55)'; c.lineWidth = 1; rrect(c, x + 0.5, y + 0.5, w - 1, h - 1, 3); c.stroke();
+    } else if (ctrl.type === 'combobox') {
+      // combo flat (<Lookup>): campo arredondado + seta ▼. O valor real vem do cursor
+      // em runtime (a verdade é o shot VFP); no preview mostramos o campo vazio + seta.
+      c.fillStyle = rgb(p.BackColor) || '#ffffff'; rrect(c, x, y, w, h, 3); c.fill();
+      c.strokeStyle = 'rgba(148,163,184,0.55)'; c.lineWidth = 1; rrect(c, x + 0.5, y + 0.5, w - 1, h - 1, 3); c.stroke();
+      c.fillStyle = rgb(p.ForeColor) || '#64748b'; const ax = x + w - 15, ay = y + h / 2 - 1;
+      c.beginPath(); c.moveTo(ax, ay); c.lineTo(ax + 8, ay); c.lineTo(ax + 4, ay + 5); c.closePath(); c.fill(); // seta dropdown
     } else if (ctrl.type === 'grid') {
       // moldura + header + 4 linhas zebra; cores REAIS extraídas do DynamicBackColor
       const cols = []; let i = 1;

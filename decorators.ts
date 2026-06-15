@@ -339,6 +339,21 @@ export interface FormFieldProps extends FlexItemProps {
 }
 export const FormField: FC<FormFieldProps> = (() => {}) as any;
 
+/** <Lookup label bind source display value>: campo de busca/seleção de registro —
+ *  combo flat (dropdown list) com IncrementalSearch (digita p/ achar) ligado a um
+ *  cursor/tabela. Mostra `display`, guarda `value` (ou o display) em `bind`. */
+export interface LookupProps extends FlexItemProps {
+  label?: string;        // rótulo do campo (muted, acima)
+  source: string;        // cursor/tabela de origem (RowSource)
+  display: string;       // campo exibido na lista
+  value?: string;        // campo-chave guardado em bind (default: o próprio display)
+  bind?: string;         // -> ControlSource (cria o membro do form)
+  name?: string;
+  required?: boolean;    // anexa " *" ao rótulo
+  onInteractiveChange?: string;
+}
+export const Lookup: FC<LookupProps> = (() => {}) as any;
+
 /** <FlatButton variant icon onClick>: botão flat COLORIDO (Container+Label+hover por
  *  shade), não o CommandButton cinza. variant: primary|secondary|ghost|danger|<token>. */
 export interface FlatButtonProps extends FlexItemProps {

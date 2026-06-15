@@ -1806,6 +1806,38 @@ function parseJsx(node, ctx, scope = {}) {
         ],
       };
     }
+    // <Lookup label bind source display value>: campo de busca/seleção de registro.
+    // Combo FLAT (Style 2 = dropdown list) com IncrementalSearch (digita p/ pular ao
+    // match) ligado a um cursor/tabela. Mostra `display`, guarda `value` (ou o próprio
+    // display) em `bind`. Resolve a dor clássica de "escolher um registro" sem o combo
+    // cinza 3D. Mesmo layout do FormField (label muted + campo), input tematizado.
+    if (tag === 'Lookup') {
+      const label = typeof attrs.label === 'string' ? attrs.label : '';
+      const caption = attrs.required === true ? `${label} *` : label;
+      const source = typeof attrs.source === 'string' ? attrs.source : undefined;
+      const display = typeof attrs.display === 'string' ? attrs.display : undefined;
+      const valueField = typeof attrs.value === 'string' ? attrs.value : undefined;
+      if (!source || !display) throw new CompileError('<Lookup> precisa de source e display', node, ctx.sf);
+      // combo nativo tematizado: RowSourceType 6 (Fields). Com `value`, 2 colunas
+      // (display visível + value oculta) e BoundColumn=2 => guarda a chave, mostra o nome.
+      const cbo = { RowSourceType: 6, Style: 2, IncrementalSearch: '.T.', SpecialEffect: 1 };
+      if (valueField) {
+        cbo.RowSource = foxString(`${source}.${display},${valueField}`);
+        cbo.ColumnCount = 2; cbo.BoundColumn = 2; cbo.ColumnWidths = foxString('400,0'); // 2ª coluna (chave) oculta
+      } else {
+        cbo.RowSource = foxString(`${source}.${display}`); cbo.BoundColumn = 1;
+      }
+      const fieldAttrs = { color: 'bg', textColor: 'onSurface', props: cbo };
+      if (typeof attrs.bind === 'string') fieldAttrs.bind = attrs.bind;
+      if (typeof attrs.name === 'string') fieldAttrs.name = attrs.name;
+      if (typeof attrs.width === 'number') fieldAttrs.width = attrs.width;
+      if (typeof attrs.onInteractiveChange === 'string') fieldAttrs.onInteractiveChange = attrs.onInteractiveChange;
+      const kids = [];
+      if (label) kids.push({ kind: 'control', baseclass: 'label', node, attrs: { caption, textColor: 'muted', fontSize: 11, width: Math.max(80, caption.length * 7), transparent: true } });
+      kids.push({ kind: 'control', baseclass: 'combobox', node, attrs: fieldAttrs });
+      return { kind: 'box', dir: 'column', gap: 3, pad: 0,
+        w: typeof attrs.width === 'number' ? attrs.width : undefined, children: kids };
+    }
     // <FlatButton variant icon onClick>: botão flat colorido (Container+Label+hover),
     // não o CommandButton cinza. <Button flat> também cai aqui.
     if (tag === 'FlatButton' || (tag === 'Button' && attrs.flat === true)) {

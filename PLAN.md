@@ -64,16 +64,29 @@ cantos + sombra). Declarado em `@vfp/core` (`decorators.ts`). Demonstrado em `ui
 
 **preview.js fiel (FEITO):** o `preview.js` (canvas, base do `report.html`) estava **cego a cor** desde o
 commit "cores em runtime" — `themeColor/hexToRGB/shade` retornam **número** BGR (`0x00BBGGRR`) e o `rgb()`
-só lia `"RGB(...)"`. Corrigido: `rgb()` aceita número; e adicionado handler de `shape` (cards/botões/sombra).
-Agora o report bate com o shot VFP real (e light≠dark de fato).
+só lia `"RGB(...)"`. Corrigido: `rgb()` aceita número; e adicionado handler de `shape` (cards/botões/sombra)
+e de `combobox`. Agora o report bate com o shot VFP real (e light≠dark de fato).
+
+**Lookup (FEITO):** `<Lookup label bind source display value>` — campo de busca/seleção de registro: combo
+FLAT (`Style 2` dropdown list + `IncrementalSearch`) ligado a um cursor/tabela via `RowSourceType 6`. Mostra
+`display`, guarda `value` (ou o display) em `bind` (com `value`: 2 colunas, BoundColumn=2, chave oculta).
+Mesmo layout do FormField. **Provado em VFP real** (diag: `ListCount=4`, itens do cursor, IncSearch `.T.`).
+Decisão do dono: combo nativo tematizado (rápido/robusto) em vez de painel custom — este fica p/ depois.
+
+**Metodologia visual (FEITO):** (1) `report.js` arquiva cada rodada em `dist/_history/<data>/` (régua
+temporal p/ diff de regressão visual); (2) rubrica **"parece profissional?"** embutida no `report.html`
+(3º eixo além de "funciona/bonito"); (3) pasta `design-reference/REFERENCES.md` com princípios destilados
+de Power BI/Linear/Stripe/Win11 (jogar PNGs reais p/ comparação 1:1). Pendente: comparador automático.
 
 **Limitações VFP confirmadas (no print):** header de Grid só colore com `Themes=.F.`; dark vaza em
 scrollbar/combo nativos; área vazia do grid (sem registros) não acompanha o tema; **inputs/grid claros no
 dark** (visível agora que o preview pinta cor — token de input não acompanha `surface` escuro).
 
-**Backlog UI (próximas iterações):** input/grid acompanharem o tema dark; mais componentes
-(Toolbar/Dialog/Sidebar/EmptyState); revisar espaçamento/tipografia por tela; minerar `/testesvf` (EXEs)
-e VFPX por padrões. (Grid "1 de N linhas" = IGNORAR por ora, decisão do dono.)
+**Backlog UI (ordem decidida pelo dono — inputs antes de chrome, pois é onde o usuário passa 80% do tempo):**
+1. inputs/grid acompanharem o tema **dark** (e estado de **foco** dos inputs); 2. `<SearchBox>`; 3. refinar
+`<Lookup>` (painel de busca custom, futuro); 4. `<Toolbar>`; 5. `<Dialog>`; 6. `<Sidebar>`/`<EmptyState>`.
+Depois: comparador visual automático; minerar `/testesvf` (EXEs) e VFPX por padrões.
+(Grid "1 de N linhas" = IGNORAR por ora, decisão do dono.)
 
 ## ✅ Feito (com prova no VFP)
 - Transpilador base: funções, aritmética type-directed, controle de fluxo, strings, `this.*`, `#DEFINE`.
