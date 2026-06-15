@@ -49,7 +49,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "node cli.js examples/calc.ts -o dist/calc.prg",
+    "build": "node build.js",
+    "build:calc": "node cli.js examples/calc.ts -o dist/calc.prg",
+    "foxcli": "node foxcli.js",
+    "foxcli:build": "go build -C foxcli -o foxcli.exe .",
     "verify": "node verify.js",
     "verify:cursor": "node verifycursor.js",
     "verify:sql": "node verifysql.js",

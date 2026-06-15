@@ -1,6 +1,9 @@
 node_modules/
 dist/
 
+# binario do foxcli: regeravel da fonte Go vendorizada via `npm run foxcli:build`
+foxcli/foxcli.exe
+
 # artefatos de build do VFP (fora de dist/)
 *.scx
 *.sct
@@ -8,6 +11,14 @@ dist/
 *.SCX
 *.FXP
 *.fxp
+# projetos/tabelas/memos do VFP gerados pelo build_exe.prg (regeneraveis)
+*.PJX
+*.PJT
+*.pjx
+*.pjt
+*.FPT
+*.fpt
+*.scxnode
 
 # telas geradas do totem (regeneraveis via build_flow.js/build_totem.js)
 showcase/totem/*.png

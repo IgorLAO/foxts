@@ -1,0 +1,33 @@
+{
+  "name": "frmDias",
+  "caption": "Dias da semana no periodo",
+  "width": 470,
+  "height": 430,
+  "properties": {
+    "AutoCenter": ".T.",
+    "BorderStyle": 2,
+    "MaxButton": ".F.",
+    "ShowWindow": 2
+  },
+  "members": [
+    { "name": "gerar", "kind": "method", "desc": "Gera uma linha na grade para cada dia entre as datas" },
+    { "name": "nomedia", "kind": "method", "desc": "Nome do dia da semana (1=Domingo ... 7=Sabado)" }
+  ],
+  "methods": {
+    "Init": "SET DATE DMY\nSET CENTURY ON\nThis.txtIni.Value = DATE()\nThis.txtFim.Value = DATE() + 13\nThis.Gerar()",
+    "Gerar": "LOCAL ldIni, ldFim, ldDia, lnDow\nldIni = This.txtIni.Value\nldFim = This.txtFim.Value\nIF VARTYPE(ldIni) # \"D\" OR VARTYPE(ldFim) # \"D\" OR EMPTY(ldIni) OR EMPTY(ldFim)\nThis.lblAviso.Caption = \"Informe as duas datas.\"\nRETURN\nENDIF\nIF ldFim < ldIni\nThis.lblAviso.Caption = \"Data final menor que a inicial.\"\nRETURN\nENDIF\nThis.lblAviso.Caption = \"\"\nThis.grdDias.RecordSource = \"\"\nIF USED(\"curdias\")\nUSE IN curdias\nENDIF\nCREATE CURSOR curdias (dia D, semana C(13), util C(3))\nldDia = ldIni\nDO WHILE ldDia <= ldFim\nlnDow = DOW(ldDia, 1)\nINSERT INTO curdias VALUES (ldDia, ThisForm.NomeDia(lnDow), IIF(INLIST(lnDow, 1, 7), \"Nao\", \"Sim\"))\nldDia = ldDia + 1\nENDDO\nGO TOP IN curdias\nWITH This.grdDias\n.RecordSource = \"curdias\"\n.ReadOnly = .T.\n.DeleteMark = .F.\n.Columns(1).Header1.Caption = \"Dia\"\n.Columns(1).Width = 100\n.Columns(2).Header1.Caption = \"Dia da semana\"\n.Columns(2).Width = 200\n.Columns(3).Header1.Caption = \"Dia util\"\n.Columns(3).Width = 80\n.Refresh()\nENDWITH",
+    "NomeDia": "LPARAMETERS tnDow\nRETURN ICASE(tnDow = 1, \"Domingo\", tnDow = 2, \"Segunda-feira\", tnDow = 3, \"Terca-feira\", tnDow = 4, \"Quarta-feira\", tnDow = 5, \"Quinta-feira\", tnDow = 6, \"Sexta-feira\", \"Sabado\")",
+    "Destroy": "IF USED(\"curdias\")\nUSE IN curdias\nENDIF\nCLEAR EVENTS"
+  },
+  "controls": [
+    { "type": "label", "name": "lblIni", "top": 12, "left": 16, "caption": "Data inicial", "properties": { "AutoSize": ".T." } },
+    { "type": "textbox", "name": "txtIni", "top": 32, "left": 16, "width": 110, "height": 24, "properties": { "Value": "{}" } },
+    { "type": "label", "name": "lblFim", "top": 12, "left": 150, "caption": "Data final", "properties": { "AutoSize": ".T." } },
+    { "type": "textbox", "name": "txtFim", "top": 32, "left": 150, "width": 110, "height": 24, "properties": { "Value": "{}" } },
+    { "type": "commandbutton", "name": "cmdGerar", "top": 30, "left": 284, "width": 80, "height": 27, "caption": "Gerar",
+      "methods": { "Click": "ThisForm.Gerar()" } },
+    { "type": "label", "name": "lblAviso", "top": 34, "left": 376, "width": 80, "caption": "", "properties": { "AutoSize": ".T.", "ForeColor": "255,0,0" } },
+    { "type": "grid", "name": "grdDias", "top": 70, "left": 16, "width": 438, "height": 340,
+      "properties": { "ColumnCount": -1, "ReadOnly": ".T.", "DeleteMark": ".F." } }
+  ]
+}

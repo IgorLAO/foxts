@@ -2,8 +2,10 @@
 // foxcli-path.js — resolve o caminho do executável foxcli ONCE, com precedência:
 //   1. process.env.FOXCLI   — override explícito
 //   2. process.env.FOXCLI_HOME + "\foxcli.exe"  — diretório customizado
-//   3. candidates relativos ao diretório deste módulo (layouts comuns de mono-repo)
-//   4. fallback hardcoded  C:\projectos\testesvf\foxcli\foxcli.exe
+//   3. foxcli BUNDLADO no repo: ./foxcli/foxcli.exe (fonte Go vendorizada + build
+//      via `npm run foxcli:build`). Self-contained — a fonte de verdade do projeto.
+//   4. candidates relativos ao módulo (layouts antigos: ../foxcli/, ../../foxcli/)
+//   5. fallback hardcoded  C:\projectos\testesvf\foxcli\foxcli.exe
 //
 // Exporta a string do caminho absoluto resolvido.
 
@@ -23,13 +25,13 @@ function resolveFoxcliPath() {
     return path.resolve(process.env.FOXCLI_HOME, 'foxcli.exe');
   }
 
-  // 3. Discovery: candidatos relativos a este módulo
-  //    Típico em mono-repos onde foxcli fica como irmão/vizinho do foxts.
+  // 3-4. Discovery: o BUNDLADO no repo vem primeiro (self-contained), depois os
+  //      layouts antigos onde o foxcli ficava como vizinho do foxts.
   const base = __dirname; // diretório do foxts
   const candidates = [
-    path.join(base, '..', 'foxcli', 'foxcli.exe'),      // ../foxcli/foxcli.exe
-    path.join(base, '..', '..', 'foxcli', 'foxcli.exe'), // ../../foxcli/foxcli.exe
-    path.join(base, 'foxcli', 'foxcli.exe'),              // ./foxcli/foxcli.exe (bundle local)
+    path.join(base, 'foxcli', 'foxcli.exe'),              // ./foxcli/foxcli.exe (BUNDLADO)
+    path.join(base, '..', 'foxcli', 'foxcli.exe'),        // ../foxcli/foxcli.exe (legado)
+    path.join(base, '..', '..', 'foxcli', 'foxcli.exe'),  // ../../foxcli/foxcli.exe (legado)
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) {
@@ -37,7 +39,7 @@ function resolveFoxcliPath() {
     }
   }
 
-  // 4. Fallback hardcoded (compatibilidade com instalações existentes)
+  // 5. Fallback hardcoded (compatibilidade com instalações existentes)
   return DEFAULT;
 }
 
