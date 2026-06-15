@@ -20,7 +20,13 @@ const FOXCLI = require('./foxcli-path');
 
 function emitJs(tsRel, outRel) {
   const js = ts.transpileModule(fs.readFileSync(tsRel, 'utf8'), {
-    compilerOptions: { module: 'commonjs', target: 'es2020', experimentalDecorators: true },
+    compilerOptions: {
+      module: 'commonjs', target: 'es2020', experimentalDecorators: true,
+      // forms .tsx: emite o JSX como chamadas (React.createElement) só para o
+      // módulo CARREGAR no Node; o oráculo nunca chama render() — a estrutura do
+      // form vem do AST (transpileForm), não da execução do JSX.
+      jsx: ts.JsxEmit.React,
+    },
   }).outputText;
   const p = path.resolve(outRel);
   fs.mkdirSync(path.dirname(p), { recursive: true });
@@ -28,10 +34,32 @@ function emitJs(tsRel, outRel) {
   return p;
 }
 
+// Faz `require("@vfp/core")` resolver no caminho do oráculo (Node-only): o pacote
+// público mapeia para os símbolos compilados de decorators.ts. Sem isto, todo form
+// que importa "@vfp/core" tinha o oráculo silenciosamente pulado (require falhava).
+// Idempotente — o hook em Module._resolveFilename é instalado uma única vez.
+let vfpCoreAlias = null;
+function aliasVfpCore(decoratorsJsPath) {
+  vfpCoreAlias = decoratorsJsPath;
+  if (aliasVfpCore.installed) return;
+  aliasVfpCore.installed = true;
+  const Module = require('module');
+  const orig = Module._resolveFilename;
+  Module._resolveFilename = function (request, ...rest) {
+    if (request === '@vfp/core' && vfpCoreAlias) return vfpCoreAlias;
+    return orig.call(this, request, ...rest);
+  };
+}
+
 function loadModule(tsPath) {
   // compila as libs (tipos+runtime) para o oráculo resolver "../fox"/"../decorators"
   if (fs.existsSync('fox.ts')) emitJs('fox.ts', 'dist/fox.js');
-  if (fs.existsSync('decorators.ts')) emitJs('decorators.ts', 'dist/decorators.js');
+  // decorators.ts é a lib pública "@vfp/core": compila p/ CJS e registra o alias
+  // para que `import ... from "@vfp/core"` resolva quando o oráculo der require().
+  if (fs.existsSync('decorators.ts')) {
+    const decJs = emitJs('decorators.ts', 'dist/decorators.js');
+    aliasVfpCore(decJs);
+  }
   // o módulo vai para dist/oracle/ — assim "../fox" aponta para dist/fox.js
   const jsPath = emitJs(tsPath, path.join('dist/oracle', path.basename(tsPath).replace(/\.tsx?$/, '') + '.cjs'));
   delete require.cache[jsPath];
@@ -42,8 +70,11 @@ const jsToFox = (v) => (typeof v === 'boolean' ? (v ? '.T.' : '.F.') : String(v)
 const foxArg = (v) => (typeof v === 'string' ? `"${v}"` : String(v));
 
 function build(tsPath, outScx) {
-  // o oráculo (Node) só é necessário quando o módulo exporta `cases`; imports como
-  // "@vfp/core" não resolvem em require — toleramos a falha e seguimos sem oráculo.
+  // o oráculo (Node) só é necessário quando o módulo exporta `cases`. "@vfp/core"
+  // agora resolve no require (alias -> decorators) em loadModule, então decorators/
+  // forms-objeto oraculam normalmente. Ainda toleramos a falha p/ casos que não
+  // rodam em Node (ex.: código top-level que usa stubs schema()/str(), que são
+  // só compile-time) — aí seguimos sem oráculo, como antes.
   let mod = {};
   try { mod = loadModule(tsPath); } catch (_e) { /* sem oráculo */ }
   const classIr = transpileForm(tsPath); // não-null se o arquivo for `class ... extends Form`
