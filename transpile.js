@@ -1793,6 +1793,8 @@ function parseJsx(node, ctx, scope = {}) {
       // input tematizado (não branco no dark) + borda FLAT (SpecialEffect 1) em vez do 3D rebaixado
       const fieldAttrs = { color: 'bg', textColor: 'onSurface', props: { SpecialEffect: 1 } };
       if (typeof attrs.bind === 'string') fieldAttrs.bind = attrs.bind;
+      if (typeof attrs.field === 'string') fieldAttrs.field = attrs.field; // bind a campo de cursor (detail)
+      if (typeof attrs.source === 'string') fieldAttrs.source = attrs.source;
       if (typeof attrs.name === 'string') fieldAttrs.name = attrs.name;
       if (typeof attrs.width === 'number') fieldAttrs.width = attrs.width;
       if (typeof attrs.value === 'string' || typeof attrs.value === 'number') fieldAttrs.value = attrs.value;
@@ -1860,6 +1862,70 @@ function parseJsx(node, ctx, scope = {}) {
       return { kind: 'box', dir: 'row', gap: 8, pad: 0, justify: 'end',
         w: typeof attrs.width === 'number' ? attrs.width : undefined,
         children: kids };
+    }
+    // ── App shell / screen patterns ──────────────────────────────────────────────
+    // <Sidebar width>: navegação vertical (app shell). Container coluna, largura fixa,
+    // fundo surface, SEM cantos/sombra (encosta na borda). Filhos (<SidebarItem>) esticam.
+    if (tag === 'Sidebar') {
+      const kids = jsxKids(node).map((c) => parseJsx(c, ctx, scope));
+      const w = typeof attrs.width === 'number' ? attrs.width : 180;
+      return {
+        kind: 'container', dir: 'column', gap: 3, pad: 10, align: 'stretch',
+        attrs: { width: w, alignSelf: 'stretch' },
+        bg: { color: typeof attrs.color === 'string' ? attrs.color : 'surface', borderColor: 'border', rounded: 0, shadow: false },
+        node, children: kids,
+      };
+    }
+    // <SidebarItem label active icon onClick>: item de navegação full-width (hover +
+    // estado ativo: barra de acento + fundo primary suave + texto/negrito primary).
+    if (tag === 'SidebarItem') return { kind: 'sidebaritem', attrs, node };
+    // <SearchBox bind onSearch placeholder>: barra de busca flat. TextBox full-width com
+    // placeholder cinza (limpa no foco) + onSearch a cada tecla (InteractiveChange) —
+    // tipicamente filtra a lista do master-detail.
+    if (tag === 'SearchBox') {
+      const ph = typeof attrs.placeholder === 'string' ? attrs.placeholder : 'Buscar...';
+      const muted = hexToRGB(THEME.muted), fgN = hexToRGB(THEME.onSurface);
+      const fieldAttrs = { color: 'bg', textColor: 'muted', value: ph, grow: 1,
+        props: { SpecialEffect: 1 },
+        // placeholder: limpa ao focar; restaura cinza ao sair vazio.
+        methods: {
+          GotFocus: `IF ALLTRIM(This.Value) == ${foxString(ph)}\n  This.Value = ""\n  This.ForeColor = ${fgN}\nENDIF`,
+          LostFocus: `IF EMPTY(ALLTRIM(This.Value))\n  This.Value = ${foxString(ph)}\n  This.ForeColor = ${muted}\nENDIF`,
+        } };
+      if (typeof attrs.bind === 'string') fieldAttrs.bind = attrs.bind;
+      if (typeof attrs.name === 'string') fieldAttrs.name = attrs.name;
+      // busca de verdade: com source+field, a cada tecla aplica SET FILTER (contém, case-
+      // insensitive) no cursor e dá Refresh — filtra a lista do master-detail ao vivo.
+      const src = typeof attrs.source === 'string' ? attrs.source : undefined;
+      const fld = typeof attrs.field === 'string' ? attrs.field : (typeof attrs.display === 'string' ? attrs.display : undefined);
+      const onSearch = typeof attrs.onSearch === 'string' ? attrs.onSearch
+        : (typeof attrs.onInteractiveChange === 'string' ? attrs.onInteractiveChange : undefined);
+      if (src && fld) {
+        fieldAttrs.methods.InteractiveChange = [
+          'LOCAL lcF', 'lcF = UPPER(ALLTRIM(This.Value))',
+          'IF EMPTY(lcF)', `  SET FILTER TO IN ${src}`,
+          'ELSE', `  SET FILTER TO lcF $ UPPER(${src}.${fld}) IN ${src}`,
+          'ENDIF', `GO TOP IN ${src}`, 'ThisForm.Refresh()',
+        ].join('\n');
+      } else if (onSearch) {
+        fieldAttrs.onInteractiveChange = onSearch;
+      }
+      return { kind: 'box', dir: 'row', gap: 8, pad: 0, align: 'center',
+        w: typeof attrs.width === 'number' ? attrs.width : undefined,
+        children: [{ kind: 'control', baseclass: 'textbox', node, attrs: fieldAttrs }] };
+    }
+    // <EmptyState message action onAction icon>: estado vazio (lista sem registros) —
+    // coluna centrada: mensagem muted + botão de ação opcional. "cara de produto".
+    if (tag === 'EmptyState') {
+      const message = typeof attrs.message === 'string' ? attrs.message : 'Nada por aqui ainda';
+      const kids = [{ kind: 'control', baseclass: 'label', node, attrs: { caption: message, textColor: 'muted', fontSize: 13,
+        width: Math.max(160, message.length * 8), bold: true, transparent: true } }];
+      if (typeof attrs.action === 'string') kids.push({ kind: 'flatbutton', node, attrs: {
+        caption: attrs.action, variant: 'primary', icon: typeof attrs.icon === 'string' ? attrs.icon : undefined,
+        onClick: typeof attrs.onAction === 'string' ? attrs.onAction : undefined } });
+      return { kind: 'box', dir: 'column', gap: 12, pad: 24, align: 'center', justify: 'center',
+        w: typeof attrs.width === 'number' ? attrs.width : undefined,
+        h: typeof attrs.height === 'number' ? attrs.height : undefined, children: kids };
     }
     if (JSX_BASECLASS[tag]) return { kind: 'control', baseclass: JSX_BASECLASS[tag], attrs, node };
     // @Component do usuário: expande o render() dele inline, com as props do uso
@@ -1957,9 +2023,19 @@ function controlLeaf(model, ctx, st) {
       const def = bindMemberDefault(a.bind, a, st.ir, ctx);
       st.ir.members.push({ name: a.bind, kind: 'property', desc: `(bind) ${a.bind}`, default: def });
     }
+  } else if (typeof a.field === 'string') {
+    // bind direto a um CAMPO de cursor/tabela (master-detail: o detalhe segue o registro
+    // corrente). Sem criar membro do form — é o cursor que guarda o valor.
+    props.ControlSource = foxString(typeof a.source === 'string' ? `${a.source}.${a.field}` : a.field);
   }
   if (typeof a.interval === 'number') props.Interval = a.interval; // Timer: intervalo (ms)
-  if (typeof a.value === 'number' || typeof a.value === 'string') props.Value = typeof a.value === 'string' ? foxString(a.value) : a.value;
+  if (typeof a.value === 'number') props.Value = a.value;
+  else if (typeof a.value === 'string') {
+    // Value string em memo de design NÃO é avaliada pelo DO FORM (vira literal COM aspas);
+    // atribui em runtime no Init (caminho pontilhado resolvido pós-layout), como as cores.
+    if (st.post) st.post.push({ setProp: ctrl, prop: 'Value', value: a.value });
+    else props.Value = foxString(a.value);
+  }
   const pic = typeof a.src === 'string' ? a.src : (typeof a.picture === 'string' ? a.picture
     : (typeof a.icon === 'string' ? iconPath(a.icon) : null)); // icon="save" -> icons/save.png
   if (pic) props.Picture = foxString(pic); // <Image src>/<Button icon> -> Picture (PNG/JPG alpha)
@@ -1975,6 +2051,7 @@ function controlLeaf(model, ctx, st) {
     const m = /^on([A-Z]\w*)$/.exec(k);
     if (m && typeof a[k] === 'string') (ctrl.methods = ctrl.methods || {})[m[1]] = `ThisForm.${a[k]}()`;
   }
+  if (a.methods && typeof a.methods === 'object') { ctrl.methods = ctrl.methods || {}; Object.assign(ctrl.methods, a.methods); } // métodos VFP crus (corpo verbatim)
   const w = typeof a.width === 'number' ? a.width : (cls.width != null ? cls.width : sz.w);
   const h = typeof a.height === 'number' ? a.height : (cls.height != null ? cls.height : sz.h);
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a),
@@ -2041,10 +2118,12 @@ function containerLeaf(model, ctx, st) {
         const surf = themeColor(model.bg.color);
         // sombra sutil: MESMO shape arredondado, deslocado +2/+2 e cinza suave, ATRÁS do fundo
         // (empilhado primeiro => fica embaixo, "vaza" como elevação). Cores no Init (design não aplica).
-        const shadow = shade('border', -8); // cinza mutado derivado da borda neutra
-        st.ir.controls.push({ type: 'shape', name: 'shd' + name, left: x + 2, top: y + 2, width: W, height: H,
-          properties: { BackStyle: 1, FillStyle: 0, Curvature: model.bg.rounded, BorderWidth: 0,
-            BackColor: shadow, FillColor: shadow } });
+        if (model.bg.shadow !== false) { // app shell (sidebar) opta por não ter sombra
+          const shadow = shade('border', -8); // cinza mutado derivado da borda neutra
+          st.ir.controls.push({ type: 'shape', name: 'shd' + name, left: x + 2, top: y + 2, width: W, height: H,
+            properties: { BackStyle: 1, FillStyle: 0, Curvature: model.bg.rounded, BorderWidth: 0,
+              BackColor: shadow, FillColor: shadow } });
+        }
         st.ir.controls.push({ type: 'shape', name: 'shp' + name, left: x, top: y, width: W, height: H,
           properties: { BackStyle: 1, FillStyle: 0, Curvature: model.bg.rounded, BorderWidth: 1,
             BackColor: surf, FillColor: surf, BorderColor: themeColor(model.bg.borderColor) } });
@@ -2156,9 +2235,69 @@ function gridLeaf(model, ctx, st) {
   }
   const cls = applyStyle(props, a); // class="w-.. h-.." pode sobrepor a largura
   if (Object.keys(props).length) ctrl.properties = props;
+  // master-detail: ao mudar de linha, Refresh() atualiza os controles do detalhe
+  // (FormField field=.. source=..) que seguem o registro corrente do cursor.
+  if (a.syncDetail === true) ctrl.methods = { AfterRowColChange: 'ThisForm.Refresh()' };
+  if (typeof a.onRowChange === 'string') { ctrl.methods = ctrl.methods || {}; ctrl.methods.AfterRowColChange = `ThisForm.${a.onRowChange}()`; }
+  // após popular o cursor (Load roda antes do Init), o ponteiro fica no último registro;
+  // GO TOP no Init faz a grade exibir a partir do 1º (senão ela rola e "some" registros).
+  if (source && st.post) st.post.push({ goTop: source });
   const w = typeof a.width === 'number' ? a.width : (cls.width != null ? cls.width : (cols.length ? colW + 24 : sz.w));
   const h = typeof a.height === 'number' ? a.height : (cls.height != null ? cls.height : sz.h);
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => { ctrl.left = x; ctrl.top = y; ctrl.width = W; ctrl.height = H; st.ir.controls.push(ctrl); } };
+}
+
+// sidebarItemLeaf: item de navegação da <Sidebar> — full-width, texto à esquerda, com
+// hover e estado ATIVO (barra de acento à esquerda + fundo primary suave + texto/negrito
+// primary). Mesma técnica do flatButton (shape de fundo + container transparente por cima),
+// mas full-width e left-aligned. O shape arredondado segura hover/ativo; a barra de acento
+// é um 2º shape fino. Cores numéricas -> reaplicadas no Init por applyRuntimeColors.
+function sidebarItemLeaf(model, ctx, st) {
+  const a = model.attrs;
+  const name = ctrlName({ name: a.name }, 'container', st);
+  const label = typeof a.label === 'string' ? a.label : (typeof a.caption === 'string' ? a.caption : '');
+  const icon = typeof a.icon === 'string' ? a.icon : null;
+  const active = a.active === true;
+  const click = typeof a.onClick === 'string' ? `ThisForm.${a.onClick}()` : '';
+  const dark = THEME._mode === 'dark';
+  const activeBg = shade('primary', dark ? -18 : 38); // primary bem suave (fundo do ativo)
+  const hoverBg = shade('surface', dark ? 18 : -8);
+  const fg = active ? hexToRGB(THEME.primary) : hexToRGB(THEME.onSurface);
+  const h = typeof a.height === 'number' ? a.height : 36;
+  const shp = 'shp' + name, acc = 'acc' + name;
+  const enter = `This.Parent.${shp}.BackStyle = 1\nThis.Parent.${shp}.FillColor = ${hoverBg}\nThis.Parent.${shp}.BackColor = ${hoverBg}`;
+  const leave = active
+    ? `This.Parent.${shp}.FillColor = ${activeBg}\nThis.Parent.${shp}.BackColor = ${activeBg}`
+    : `This.Parent.${shp}.BackStyle = 0`;
+  return { w: typeof a.width === 'number' ? a.width : 160, h, grow: 0, alignSelf: 'stretch',
+    place: (x, y, W, H) => {
+      // fundo arredondado (visível no hover/ativo)
+      const shape = { type: 'shape', name: shp, left: x, top: y, width: W, height: H,
+        properties: { BackStyle: active ? 1 : 0, FillStyle: 0, Curvature: 10, BorderWidth: 0 } };
+      if (active) { shape.properties.BackColor = activeBg; shape.properties.FillColor = activeBg; }
+      st.ir.controls.push(shape);
+      // barra de acento à esquerda (só no ativo): retângulo fino primary
+      if (active) st.ir.controls.push({ type: 'shape', name: acc, left: x, top: y + 6, width: 3, height: H - 12,
+        properties: { BackStyle: 1, FillStyle: 0, Curvature: 0, BorderWidth: 0,
+          BackColor: hexToRGB(THEME.primary), FillColor: hexToRGB(THEME.primary) } });
+      // container transparente por cima (hover/click)
+      const cont = { type: 'container', name, left: x, top: y, width: W, height: H,
+        properties: { BackStyle: 0, BorderWidth: 0 },
+        methods: { MouseEnter: enter, MouseLeave: leave } };
+      if (click) cont.methods.Click = click;
+      st.ir.controls.push(cont);
+      const tx = icon ? 30 : 12;
+      const lbl = { type: 'label', name: name + 't', parent: name, caption: label,
+        left: tx, top: Math.round((H - 16) / 2), width: W - tx - 6, height: 16,
+        properties: { BackStyle: 0, Alignment: 0, ForeColor: fg,
+          FontName: foxString(THEME.fontBody || THEME.font || 'Segoe UI'), FontSize: 10 },
+        methods: Object.assign({ MouseEnter: enter }, click ? { Click: click } : {}) };
+      if (active) lbl.properties.FontBold = '.T.';
+      st.ir.controls.push(lbl);
+      if (icon) st.ir.controls.push({ type: 'image', name: name + 'i', parent: name,
+        left: 8, top: Math.round((H - 16) / 2), width: 16, height: 16,
+        properties: { Picture: foxString(iconPath(icon)), BackStyle: 0 } });
+    } };
 }
 
 // flatButtonLeaf: botão flat (Container colorido + Label centrado + ícone opcional),
@@ -2229,6 +2368,7 @@ function flatButtonLeaf(model, ctx, st) {
 // toLayoutTree: modelo JSX -> árvore para o motor de layout (containers + folhas).
 function toLayoutTree(model, ctx, st) {
   if (model.kind === 'flatbutton') return flatButtonLeaf(model, ctx, st);
+  if (model.kind === 'sidebaritem') return sidebarItemLeaf(model, ctx, st);
   if (model.kind === 'box') {
     return {
       container: true, dir: model.dir, gap: model.gap, pad: model.pad, justify: model.justify, align: model.align, wrap: model.wrap,
@@ -2367,6 +2507,11 @@ function transpileForm(entry, opts = {}) {
     // PARENT já resolvido pelo layout (ThisForm.cnt1.grd1 etc.).
     if (st.post.length) {
       const fix = st.post.map((p) => {
+        if (p.goTop) return `${ind(1)}GO TOP IN ${p.goTop}`; // grade exibe a partir do 1º registro
+        if (p.setProp) { // prop string (ex: Value/placeholder) atribuída em runtime
+          const sp = 'ThisForm.' + (p.setProp.parent ? p.setProp.parent + '.' : '') + p.setProp.name;
+          return `${ind(1)}${sp}.${p.prop} = ${foxString(p.value)}`;
+        }
         const path = 'ThisForm.' + (p.ctrl.parent ? p.ctrl.parent + '.' : '') + p.ctrl.name;
         const lines = [`${ind(1)}${path}.Column${p.col}.Header1.Caption = ${foxString(p.header)}`];
         if (p.bold) lines.push(`${ind(1)}${path}.Column${p.col}.Header1.FontBold = .T.`);

@@ -73,6 +73,18 @@ FLAT (`Style 2` dropdown list + `IncrementalSearch`) ligado a um cursor/tabela v
 Mesmo layout do FormField. **Provado em VFP real** (diag: `ListCount=4`, itens do cursor, IncSearch `.T.`).
 Decisão do dono: combo nativo tematizado (rápido/robusto) em vez de painel custom — este fica p/ depois.
 
+**App shell + screen pattern (FEITO — top-down, decisão do dono):** salto de "componente" p/ "padrão de
+tela". Novos componentes: `<Sidebar>`/`<SidebarItem label active icon onClick>` (navegação lateral full-width,
+hover + estado ativo com barra de acento + fundo primary suave — `sidebarItemLeaf`, mesma técnica shape+container
+do flatButton); `<SearchBox source field placeholder>` (busca flat com placeholder cinza que limpa no foco;
+com source+field emite `SET FILTER` ao vivo por tecla); `<EmptyState message action>` (lista vazia). Tela
+`showcase/app.form.tsx` compõe tudo num **master-detail de Clientes**: Sidebar + SearchBox + Grid (`syncDetail`
+→ `AfterRowColChange=Refresh`) + Card de detalhe com `<FormField field=.. source=..>` (bind direto a campo de
+cursor, segue o registro corrente). **Provado em VFP real, light E dark.** Achados/fixes no caminho:
+(a) grade exibia só 1 registro pós-appends (ponteiro no último) → `GO TOP` no Init via `st.post`;
+(b) `Value` string em memo de design não é avaliada (vinha com aspas literais) → atribuída em runtime no Init.
+Próximo: extrair `<MasterDetail source>` como tag única a partir desta tela (o "refactor" do plano top-down).
+
 **Metodologia visual (FEITO):** (1) `report.js` arquiva cada rodada em `dist/_history/<data>/` (régua
 temporal p/ diff de regressão visual); (2) rubrica **"parece profissional?"** embutida no `report.html`
 (3º eixo além de "funciona/bonito"); (3) pasta `design-reference/REFERENCES.md` com princípios destilados

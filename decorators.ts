@@ -265,6 +265,8 @@ export interface GridProps extends StyleProps, FlexItemProps {
   deleteMark?: boolean;   // coluna de marca de exclusão — default false (oculta)
   gridLines?: number;     // 0=nenhuma 1=horizontal 2=vertical 3=ambas — default 1
   scrollBars?: number;    // 0=nenhuma 1=horiz 2=vert 3=ambas — default 2
+  syncDetail?: boolean;   // master-detail: AfterRowColChange -> ThisForm.Refresh()
+  onRowChange?: string;   // método chamado ao mudar de linha (AfterRowColChange)
   children?: any;
 }
 export const Grid: FC<GridProps> = (() => {}) as any;
@@ -332,6 +334,8 @@ export const StatCard: FC<StatCardProps> = (() => {}) as any;
 export interface FormFieldProps extends FlexItemProps {
   label: string;        // rótulo do campo (obrigatório)
   bind?: string;        // -> ControlSource do TextBox (cria o membro)
+  field?: string;       // bind a CAMPO de cursor (detail segue o registro); não cria membro
+  source?: string;      // cursor/tabela do `field` (-> ControlSource "source.field")
   name?: string;        // nome do TextBox (senão derivado do bind)
   required?: boolean;   // anexa " *" ao rótulo
   value?: string | number;
@@ -353,6 +357,50 @@ export interface LookupProps extends FlexItemProps {
   onInteractiveChange?: string;
 }
 export const Lookup: FC<LookupProps> = (() => {}) as any;
+
+// ── App shell / screen patterns ──────────────────────────────────────────────
+
+/** <Sidebar width>: navegação vertical (app shell). Container coluna, largura fixa,
+ *  fundo surface, sem cantos/sombra. Filhos <SidebarItem> esticam na largura. */
+export interface SidebarProps extends StyleProps, FlexItemProps {
+  width?: number;        // largura da barra (default 180)
+  children?: any;
+}
+export const Sidebar: FC<SidebarProps> = (() => {}) as any;
+
+/** <SidebarItem label active icon onClick>: item de navegação full-width com hover e
+ *  estado ativo (barra de acento + fundo primary suave + texto primary). */
+export interface SidebarItemProps extends FlexItemProps {
+  label: string;         // texto do item
+  active?: boolean;      // item selecionado (destaque)
+  icon?: string;         // "settings" -> icons/settings.png (à esquerda)
+  onClick?: string;      // método do form -> ThisForm.<m>()
+}
+export const SidebarItem: FC<SidebarItemProps> = (() => {}) as any;
+
+/** <SearchBox bind onSearch placeholder>: barra de busca flat (placeholder cinza que
+ *  limpa no foco). onSearch dispara a cada tecla (InteractiveChange) — filtra a lista. */
+export interface SearchBoxProps extends FlexItemProps {
+  bind?: string;         // -> ControlSource (cria o membro)
+  name?: string;
+  placeholder?: string;  // texto-fantasma (default "Buscar...")
+  source?: string;       // cursor a filtrar (com `field` => SET FILTER ao vivo)
+  field?: string;        // campo do filtro (contém, case-insensitive)
+  display?: string;      // alias de `field`
+  onSearch?: string;     // método chamado a cada tecla (se não usar source/field)
+  onInteractiveChange?: string;
+}
+export const SearchBox: FC<SearchBoxProps> = (() => {}) as any;
+
+/** <EmptyState message action onAction icon>: estado vazio (lista sem registros) —
+ *  mensagem muted centrada + botão de ação opcional. */
+export interface EmptyStateProps extends FlexItemProps {
+  message: string;       // mensagem principal
+  action?: string;       // rótulo do botão de ação (opcional)
+  onAction?: string;     // método -> ThisForm.<m>()
+  icon?: string;         // ícone do botão de ação
+}
+export const EmptyState: FC<EmptyStateProps> = (() => {}) as any;
 
 /** <FlatButton variant icon onClick>: botão flat COLORIDO (Container+Label+hover por
  *  shade), não o CommandButton cinza. variant: primary|secondary|ghost|danger|<token>. */
