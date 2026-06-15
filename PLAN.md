@@ -78,9 +78,15 @@ temporal p/ diff de regressão visual); (2) rubrica **"parece profissional?"** e
 (3º eixo além de "funciona/bonito"); (3) pasta `design-reference/REFERENCES.md` com princípios destilados
 de Power BI/Linear/Stripe/Win11 (jogar PNGs reais p/ comparação 1:1). Pendente: comparador automático.
 
-**Limitações VFP confirmadas (no print):** header de Grid só colore com `Themes=.F.`; dark vaza em
-scrollbar/combo nativos; área vazia do grid (sem registros) não acompanha o tema; **inputs/grid claros no
-dark** (visível agora que o preview pinta cor — token de input não acompanha `surface` escuro).
+**Dark mode da Grid (FEITO):** a grade saía com **corpo branco** no dark (só zebra colorida, fundo/área
+vazia = default branco do VFP; texto preto). Corrigido: `Grid.BackColor = surface` (numérico → reaplicado
+no Init por `applyRuntimeColors`) cobre fundo + área vazia; `Column<N>.DynamicForeColor = onSurface`
+(expressão → runtime) deixa o texto claro. Inputs/combo já eram escuros (`bg`). `preview.js` passou a ler
+`DynamicBackColor` numérico (antes só `"RGB(...)"` → caía no branco). Provado no shot VFP dark real.
+
+**Limitações VFP confirmadas (no print):** header de Grid só colore com `Themes=.F.`; **botão de dropdown do
+ComboBox e scrollbars nativas continuam claras no dark** (controles owner-drawn pelo OS — vencer isso exige
+owner-draw/Windows API ou WebView2, fica p/ quando valer a pena).
 
 **Backlog UI (ordem decidida pelo dono — inputs antes de chrome, pois é onde o usuário passa 80% do tempo):**
 1. inputs/grid acompanharem o tema **dark** (e estado de **foco** dos inputs); 2. `<SearchBox>`; 3. refinar

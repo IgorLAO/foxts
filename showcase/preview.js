@@ -97,11 +97,14 @@ function gridHeaders() {
       // moldura + header + 4 linhas zebra; cores REAIS extraídas do DynamicBackColor
       const cols = []; let i = 1;
       while (p[`Column${i}.Width`] != null) { cols.push({ w: num(p[`Column${i}.Width`]), h: headers[i] || '' }); i++; }
-      const zz = [...String(p['Column1.DynamicBackColor'] || '').matchAll(/RGB\((\d+),\s*(\d+),\s*(\d+)\)/gi)].map((m) => `rgb(${m[1]},${m[2]},${m[3]})`);
-      const altRow = zz[0] || '#f1f5f9', surface = zz[1] || '#ffffff'; // IIF(MOD=0, altRow, surface)
+      // zebra: o DynamicBackColor agora carrega NÚMEROS BGR (não "RGB(...)"). Os 2 números
+      // grandes são altRow e surface (o 2 e o 0 do MOD são pequenos, ignorados por \d{4,}).
+      const zz = [...String(p['Column1.DynamicBackColor'] || '').matchAll(/\d{4,}/g)].map((m) => rgb(+m[0]));
+      const gridBack = rgb(p.BackColor); // fundo da grade (área vazia) = surface do tema
+      const altRow = zz[0] || gridBack || '#f1f5f9', surface = zz[1] || gridBack || '#ffffff'; // IIF(MOD=0, altRow, surface)
       const headBg = shadePx(surface, -10), txt = lum(surface) < 0.5 ? '#e2e8f0' : '#0f172a';
       const hH = 22, rH = 22;
-      c.fillStyle = surface; c.fillRect(x, y, w, h); c.strokeStyle = 'rgba(148,163,184,0.4)'; c.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      c.fillStyle = gridBack || surface; c.fillRect(x, y, w, h); c.strokeStyle = 'rgba(148,163,184,0.4)'; c.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
       c.fillStyle = headBg; c.fillRect(x, y, w, hH); // header
       for (let r = 0; r < Math.min(4, Math.floor((h - hH) / rH)); r++) {
         c.fillStyle = r % 2 === 0 ? surface : altRow; // RECNO ímpar=surface, par=altRow

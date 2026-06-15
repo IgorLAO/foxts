@@ -2123,6 +2123,11 @@ function gridLeaf(model, ctx, st) {
     props.DeleteMark = a.deleteMark === true ? '.T.' : '.F.';
     props.ScrollBars = typeof a.scrollBars === 'number' ? a.scrollBars : 2; // 2=vertical
     props.Themes = '.F.'; // header flat com NOSSAS cores (em vez do tema do OS, que não escurece)
+    // fundo da grade (incl. área vazia abaixo dos registros) = surface do tema, senão
+    // fica BRANCO no dark (default do VFP). Cor numérica -> reaplicada no Init por
+    // applyRuntimeColors (design-prop de cor corrompe no load). Texto das células segue
+    // por DynamicForeColor (expressão, avaliada em runtime) p/ ficar claro no dark.
+    props.BackColor = hexToRGB(THEME.surface);
     if (THEME.fontData) props.FontName = foxString(THEME.fontData); // papel "dados" (Consolas)
     // larguras: a última coluna absorve a sobra (largura do grid - colunas - scrollbar),
     // pra grade não terminar com uma coluna vazia à direita.
@@ -2142,6 +2147,7 @@ function gridLeaf(model, ctx, st) {
       props[`Column${i}.Width`] = widths[idx];
       if (field) props[`Column${i}.ControlSource`] = foxString(source ? `${source}.${field}` : field);
       if (zebra) props[`Column${i}.DynamicBackColor`] = foxString(zebraExpr); // listras
+      props[`Column${i}.DynamicForeColor`] = foxString(String(hexToRGB(THEME.onSurface))); // texto claro no dark
       const header = typeof c.header === 'string' ? c.header : (field ? cap1(field) : undefined);
       // header reaplicado no Init (a vinculação reescreve Caption); bold + cores idem p/
       // não depender de prop de design de 3 níveis (Column.Header1.*) no genscx.
