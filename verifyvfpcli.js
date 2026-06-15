@@ -162,6 +162,10 @@ let appPrg = '';
 if (hasAppPrg) appPrg = fs.readFileSync(path.join(PROJ, 'dist/app.prg'), 'utf8');
 add('app.prg tem SET PROCEDURE para linkar PRGs', /SET PROCEDURE/.test(appPrg), appPrg.slice(0, 300));
 
+// app.prg instala ON ERROR + a PROCEDURE de log (captura de erros de runtime no EXE)
+add('app.prg instala ON ERROR DO FoxtsOnError', /ON ERROR\s+DO\s+FoxtsOnError\s+WITH/.test(appPrg), appPrg.slice(0, 400));
+add('app.prg define a PROCEDURE FoxtsOnError', /\bPROCEDURE\s+FoxtsOnError\b/.test(appPrg) && /FWRITE\s*\(/.test(appPrg), 'handler + FWRITE');
+
 // main.prg gerado
 const hasMainPrg = distFiles.some((f) => /main\.prg$/i.test(f));
 add('build gerou main.prg', hasMainPrg, distFiles.filter((f) => /\.prg$/.test(f)).join(', '));

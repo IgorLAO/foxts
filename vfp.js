@@ -322,6 +322,13 @@ async function cmdBuild(root) {
 // corrente). Nenhum caminho da maquina fica baked no arquivo -> portavel entre
 // maquinas/EXE. tcHome (param opcional, passado pelo `vfp run`) sobrepoe quando o
 // foxcli relocaliza o app.prg p/ um BOOT temporario (ai SYS(16,1) aponta p/ o temp).
+//
+// Captura de erros: instala `ON ERROR DO FoxtsOnError WITH ...` logo no inicio, antes
+// de qualquer SET/DO FORM, para que QUALQUER erro de runtime do Fox (inclusive em
+// Init/Load dos forms) caia em <dist>/foxts-errors.log com numero/mensagem/linha/
+// programa, em vez de uma caixa de dialogo num EXE sem ninguem olhando. A PROCEDURE
+// fica no FIM do arquivo (o VFP encerra o fluxo principal ao encontrar `PROCEDURE`) e
+// le o caminho do log de uma PUBLIC (o LOCAL lcHome nao vive no escopo da procedure).
 function writeBootstrap(out, prgs, hasMain, entry, menus = []) {
   // caminho relativo de p em relacao a out (dir do app.prg), com separador VFP (\)
   const rel = (p) => path.relative(out, p).split(path.sep).join('\\');
@@ -332,12 +339,41 @@ function writeBootstrap(out, prgs, hasMain, entry, menus = []) {
     // home = param do `vfp run` (se vier) senao o dir do proprio app.prg em runtime
     'lcHome = IIF(VARTYPE(tcHome) = "C" AND !EMPTY(tcHome), ADDBS(tcHome), ADDBS(JUSTPATH(SYS(16,1))))',
     'SET DEFAULT TO (lcHome)',
+    // log de erros: PUBLIC (a PROCEDURE no fim nao enxerga o LOCAL lcHome) + ON ERROR.
+    // ON ERROR ... WITH avalia as funcoes (ERROR()/MESSAGE()/...) no momento do erro.
+    'PUBLIC gcFoxtsErrLog',
+    'gcFoxtsErrLog = lcHome + "foxts-errors.log"',
+    'ON ERROR DO FoxtsOnError WITH ERROR(), MESSAGE(), MESSAGE(1), LINENO(), PROGRAM()',
   ];
   for (const p of prgs) lines.push(`SET PROCEDURE TO (lcHome + "${rel(p)}") ADDITIVE`);
   lines.push(`SET PATH TO (lcHome + "forms") ADDITIVE`);
   for (const m of menus) lines.push(`DO ${m}`); // ativa a barra de menus (ACTIVATE MENU NOWAIT)
   if (entry) { lines.push(`DO FORM (lcHome + "forms\\${entry}.scx")`, 'READ EVENTS'); }
   else if (hasMain) lines.push('main()');
+  // PROCEDURE no fim: o handler de ON ERROR. Apende cada erro no log (FOPEN/FSEEK/
+  // FWRITE = append portavel, sem depender do flag aditivo ambiguo do STRTOFILE).
+  lines.push(
+    '',
+    '* --- ON ERROR: grava cada erro de runtime no foxts-errors.log ---------------',
+    'PROCEDURE FoxtsOnError',
+    'LPARAMETERS tnError, tcMessage, tcCode, tnLine, tcProgram',
+    'LOCAL lcEntry, lnH',
+    'lcEntry = TTOC(DATETIME()) + "  erro " + TRANSFORM(tnError) + ": " + tcMessage + CHR(13) + CHR(10) ;',
+    '  + "    em " + tcProgram + " (linha " + TRANSFORM(tnLine) + ")" + CHR(13) + CHR(10) ;',
+    '  + "    codigo: " + tcCode + CHR(13) + CHR(10) ;',
+    '  + REPLICATE("-", 60) + CHR(13) + CHR(10)',
+    'IF FILE(gcFoxtsErrLog)',
+    '  lnH = FOPEN(gcFoxtsErrLog, 2)  && 2 = leitura/escrita',
+    'ELSE',
+    '  lnH = FCREATE(gcFoxtsErrLog)',
+    'ENDIF',
+    'IF lnH >= 0',
+    '  =FSEEK(lnH, 0, 2)  && vai para o fim do arquivo (append)',
+    '  =FWRITE(lnH, lcEntry)',
+    '  =FCLOSE(lnH)',
+    'ENDIF',
+    'RETURN',
+  );
   fs.writeFileSync(path.join(out, 'app.prg'), lines.join('\n') + '\n', 'latin1');
 }
 
