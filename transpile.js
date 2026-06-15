@@ -1754,6 +1754,37 @@ function parseJsx(node, ctx, scope = {}) {
         children: [...head, ...kids],
       };
     }
+    // <StatCard label value delta>: cartão de métrica de dashboard. Reaproveita o `bg`
+    // do Card (shape arredondado + sombra de elevação) e empilha: label (muted, pequeno),
+    // valor (grande, bold, fontTitle) e delta opcional (verde se sobe, vermelho se cai —
+    // detectado pelo sinal). Açúcar puro sobre primitivos + tokens, re-estilável por tema.
+    if (tag === 'StatCard') {
+      const label = typeof attrs.label === 'string' ? attrs.label : '';
+      const value = attrs.value != null ? String(attrs.value) : '';
+      const delta = typeof attrs.delta === 'string' ? attrs.delta : undefined;
+      const deltaColor = delta && delta.trim().charAt(0) === '-' ? 'danger' : 'success';
+      const containerAttrs = {};
+      for (const k of ['name', 'width', 'height', 'grow', 'flexGrow', 'alignSelf']) if (attrs[k] !== undefined) containerAttrs[k] = attrs[k];
+      const kids = [
+        { kind: 'control', baseclass: 'label', node, attrs: { caption: label, textColor: 'muted', fontSize: 11, width: Math.max(80, label.length * 8), transparent: true } },
+        { kind: 'control', baseclass: 'label', node, attrs: { caption: value, bold: true, textColor: 'onSurface', fontSize: 22, height: 30,
+          fontName: THEME.fontTitle || THEME.fontBody || THEME.font, width: Math.max(80, value.length * 15), transparent: true } },
+      ];
+      if (delta) kids.push({ kind: 'control', baseclass: 'label', node, attrs: { caption: delta, textColor: deltaColor, bold: true, fontSize: 11, width: Math.max(50, delta.length * 8), transparent: true } });
+      return {
+        kind: 'container', dir: 'column',
+        gap: typeof attrs.gap === 'number' ? attrs.gap : 4,
+        pad: typeof attrs.padding === 'number' ? attrs.padding : 16,
+        attrs: containerAttrs,
+        bg: {
+          color: typeof attrs.color === 'string' ? attrs.color : 'surface',
+          borderColor: typeof attrs.borderColor === 'string' ? attrs.borderColor : 'border',
+          rounded: typeof attrs.rounded === 'number' ? attrs.rounded : 18,
+        },
+        node,
+        children: kids,
+      };
+    }
     // <FormField label required bind width>: par Label (muted, pequeno) + TextBox com
     // o espaçamento/alinhamento corretos — substitui o GroupBox+Label+TextBox colado à mão.
     if (tag === 'FormField') {
@@ -1976,6 +2007,12 @@ function containerLeaf(model, ctx, st) {
     place: (x, y, W, H) => {
       if (model.bg) { // shape de fundo (atrás de tudo), cores aplicadas no Init por applyRuntimeColors
         const surf = themeColor(model.bg.color);
+        // sombra sutil: MESMO shape arredondado, deslocado +2/+2 e cinza suave, ATRÁS do fundo
+        // (empilhado primeiro => fica embaixo, "vaza" como elevação). Cores no Init (design não aplica).
+        const shadow = shade('border', -8); // cinza mutado derivado da borda neutra
+        st.ir.controls.push({ type: 'shape', name: 'shd' + name, left: x + 2, top: y + 2, width: W, height: H,
+          properties: { BackStyle: 1, FillStyle: 0, Curvature: model.bg.rounded, BorderWidth: 0,
+            BackColor: shadow, FillColor: shadow } });
         st.ir.controls.push({ type: 'shape', name: 'shp' + name, left: x, top: y, width: W, height: H,
           properties: { BackStyle: 1, FillStyle: 0, Curvature: model.bg.rounded, BorderWidth: 1,
             BackColor: surf, FillColor: surf, BorderColor: themeColor(model.bg.borderColor) } });
@@ -2113,20 +2150,37 @@ function flatButtonLeaf(model, ctx, st) {
   const click = typeof a.onClick === 'string' ? `ThisForm.${a.onClick}()` : '';
   const w = typeof a.width === 'number' ? a.width : Math.max(86, caption.length * 7 + (icon ? 34 : 18));
   const h = typeof a.height === 'number' ? a.height : 30;
+  // cantos arredondados: Container.Curvature é no-op visual no VFP9; só Shape.Curvature
+  // arredonda. Então o fundo do botão vira um SHAPE arredondado (atrás), e o container
+  // fica TRANSPARENTE (BackStyle:0) só segurando label/ícone. O hover recolore o SHAPE
+  // (irmão do container sob o mesmo pai), não o container. Cores numéricas -> emitidas no
+  // Init por applyRuntimeColors. Resting fill = bg (ghost = sem preenchimento, só borda).
+  const shp = 'shp' + name;
+  // resting do shape: filled => BackStyle 1; ghost => BackStyle 0 (transparente, só borda)
+  const restEnter = `This.Parent.${shp}.BackStyle = 1\nThis.Parent.${shp}.FillColor = ${hover}\nThis.Parent.${shp}.BackColor = ${hover}`;
+  const restLeave = bg
+    ? `This.Parent.${shp}.FillColor = ${bg}\nThis.Parent.${shp}.BackColor = ${bg}`
+    : `This.Parent.${shp}.BackStyle = 0`;
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => {
+    // SHAPE de fundo arredondado (irmão do container, atrás dele). Curvature ~8 = cantos
+    // suaves. Filled: BackStyle 1 + Fill/BackColor = bg. Ghost: transparente + borda.
+    const shape = { type: 'shape', name: shp, left: x, top: y, width: W, height: H,
+      properties: { BackStyle: bg ? 1 : 0, FillStyle: 0, Curvature: 8, BorderWidth: outline ? 1 : (bg ? 0 : 1) } };
+    if (bg) { shape.properties.BackColor = bg; shape.properties.FillColor = bg; }
+    if (outline) shape.properties.BorderColor = border;
+    else if (bg) shape.properties.BorderColor = bg; // borda = fill (sem moldura visível)
+    st.ir.controls.push(shape);
+    // container TRANSPARENTE por cima, segura label/ícone e dispara hover/click no shape.
     const cont = { type: 'container', name, left: x, top: y, width: W, height: H,
-      properties: { BackStyle: bg ? 1 : 0, BorderWidth: outline ? 1 : 0, Curvature: 4 },
-      methods: { MouseEnter: `This.BackStyle = 1\nThis.BackColor = ${hover}`,
-        MouseLeave: bg ? `This.BackColor = ${bg}` : 'This.BackStyle = 0' } };
-    if (bg) cont.properties.BackColor = bg;
-    if (outline) cont.properties.BorderColor = border;
+      properties: { BackStyle: 0, BorderWidth: 0 },
+      methods: { MouseEnter: restEnter, MouseLeave: restLeave } };
     if (click) cont.methods.Click = click;
     st.ir.controls.push(cont);
     const tx = icon ? 22 : 0, tw = icon ? W - 22 : W;
     const lbl = { type: 'label', name: name + 't', parent: name, caption,
       left: tx, top: Math.round((H - 16) / 2), width: tw, height: 16,
       properties: { BackStyle: 0, Alignment: 2, ForeColor: fg, FontName: foxString(THEME.fontBody || THEME.font || 'Segoe UI'), FontSize: 9 },
-      methods: Object.assign({ MouseEnter: `This.Parent.BackStyle = 1\nThis.Parent.BackColor = ${hover}` }, click ? { Click: click } : {}) };
+      methods: Object.assign({ MouseEnter: restEnter }, click ? { Click: click } : {}) };
     st.ir.controls.push(lbl);
     if (icon) st.ir.controls.push({ type: 'image', name: name + 'i', parent: name,
       left: 8, top: Math.round((H - 16) / 2), width: 16, height: 16,

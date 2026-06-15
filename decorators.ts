@@ -313,6 +313,20 @@ export interface CardProps extends StyleProps, FlexItemProps {
 }
 export const Card: FC<CardProps> = (() => {}) as any;
 
+/** <StatCard label value delta>: cartão de métrica de dashboard (label muted + valor
+ *  grande + delta colorido pelo sinal: + verde / - vermelho). Reaproveita o fundo do
+ *  Card (cantos arredondados + sombra). Desugara p/ <Container> com bg. */
+export interface StatCardProps extends StyleProps, FlexItemProps {
+  label: string;             // rótulo da métrica (muted, pequeno)
+  value: string | number;    // valor em destaque (grande, bold)
+  delta?: string;            // variação; começa com "-" => vermelho, senão verde
+  name?: string;
+  gap?: number;
+  padding?: number;
+  children?: any;
+}
+export const StatCard: FC<StatCardProps> = (() => {}) as any;
+
 /** <FormField label required bind>: par rótulo + campo com espaçamento/tipografia
  *  corretos. Substitui o Label+TextBox colado à mão. Desugara p/ <Column>+<Label>+<TextBox>. */
 export interface FormFieldProps extends FlexItemProps {

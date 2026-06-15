@@ -50,15 +50,30 @@ já nasce flat. Showcase: `showcase/ui-kit*.form.tsx`.
 **Cantos arredondados (RESOLVIDO):** `Curvature` em Container é **no-op visual**, mas em **Shape arredonda**
 (provado: `diagshape`). Então `<Card>` emite um **Shape de fundo** arredondado (surface+borda+Curvature ~22)
 e o Container fica transparente por cima segurando os filhos (z-order: shape→container→filhos). Cores do
-shape via `applyRuntimeColors`. Mesma técnica serviria p/ arredondar botões (pendente: hover teria que
-mirar o FillColor do shape, não o BackColor do container).
+shape via `applyRuntimeColors`. **Botões arredondados (FEITO):** `flatButtonLeaf` emite um Shape de fundo
+(Curvature 8) atrás do Container transparente; o hover recolore o `FillColor`/`BackColor` do **shape** (via
+`This.Parent.shp<name>`), não o container. Variantes filled/outline/ghost. Provado no shot VFP real.
+
+**Elevação/sombra de card (FEITO):** `containerLeaf` emite, antes do shape de surface, um **segundo shape**
+(mesmo Curvature) deslocado +2/+2 e pintado com `shade('border', -8)` — "vaza" embaixo como sombra suave.
+Vale p/ todo `model.bg` (Card e StatCard). Provado no shot VFP real.
+
+**StatCard (FEITO):** `<StatCard label value delta>` — cartão de métrica de dashboard (label muted + valor
+grande bold + delta colorido pelo sinal: `+` verde / `-` vermelho). Açúcar sobre Container c/ `bg` (herda
+cantos + sombra). Declarado em `@vfp/core` (`decorators.ts`). Demonstrado em `ui-kit-gallery`.
+
+**preview.js fiel (FEITO):** o `preview.js` (canvas, base do `report.html`) estava **cego a cor** desde o
+commit "cores em runtime" — `themeColor/hexToRGB/shade` retornam **número** BGR (`0x00BBGGRR`) e o `rgb()`
+só lia `"RGB(...)"`. Corrigido: `rgb()` aceita número; e adicionado handler de `shape` (cards/botões/sombra).
+Agora o report bate com o shot VFP real (e light≠dark de fato).
 
 **Limitações VFP confirmadas (no print):** header de Grid só colore com `Themes=.F.`; dark vaza em
-scrollbar/combo nativos; área vazia do grid (sem registros) não acompanha o tema.
+scrollbar/combo nativos; área vazia do grid (sem registros) não acompanha o tema; **inputs/grid claros no
+dark** (visível agora que o preview pinta cor — token de input não acompanha `surface` escuro).
 
-**Backlog UI (próximas iterações):** cantos arredondados (Shape de fundo?); elevação/sombra de card (fake);
-mais componentes (StatCard/Toolbar/Dialog/Sidebar/EmptyState); revisar espaçamento/tipografia por tela;
-minerar `/testesvf` (EXEs) e VFPX por padrões. (Grid "1 de N linhas" = IGNORAR por ora, decisão do dono.)
+**Backlog UI (próximas iterações):** input/grid acompanharem o tema dark; mais componentes
+(Toolbar/Dialog/Sidebar/EmptyState); revisar espaçamento/tipografia por tela; minerar `/testesvf` (EXEs)
+e VFPX por padrões. (Grid "1 de N linhas" = IGNORAR por ora, decisão do dono.)
 
 ## ✅ Feito (com prova no VFP)
 - Transpilador base: funções, aritmética type-directed, controle de fluxo, strings, `this.*`, `#DEFINE`.

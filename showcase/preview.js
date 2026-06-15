@@ -22,7 +22,10 @@ const ir = t.transpileForm(entry);
 const W = ir.width || 480, H = ir.height || 360;
 
 // ---- helpers ----------------------------------------------------------------
-const rgb = (v) => { // "RGB(r, g, b)" -> "rgb(r,g,b)"; senão null
+const rgb = (v) => { // cor VFP -> css. Aceita NÚMERO BGR (0x00BBGGRR, como themeColor/
+  // hexToRGB/shade emitem) OU a string "RGB(r,g,b)". Sem isso o preview fica cego às
+  // cores reais (que viraram número no commit "cores em runtime").
+  if (typeof v === 'number') return `rgb(${v & 255},${(v >> 8) & 255},${(v >> 16) & 255})`;
   const m = /RGB\((\d+),\s*(\d+),\s*(\d+)\)/i.exec(String(v || ''));
   return m ? `rgb(${m[1]},${m[2]},${m[3]})` : null;
 };
@@ -70,7 +73,14 @@ function gridHeaders() {
     const filled = p.BackStyle === 1 || (back && p.BackStyle !== 0);
     const rad = num(p.Curvature) > 0 ? Math.min(num(p.Curvature), w / 2, h / 2) : 0;
 
-    if (ctrl.type === 'container') {
+    if (ctrl.type === 'shape') {
+      // shape arredondado: fundo de card/botão + sombra de elevação. Preenche com
+      // FillColor (FillStyle 0 = sólido); borda por BorderWidth/BorderColor. Curvature
+      // = raio. É o que dá cantos suaves de verdade (Container.Curvature é no-op no VFP).
+      const fill = rgb(p.FillColor) || back;
+      if (fill && p.FillStyle === 0 && (p.BackStyle === 1 || p.FillColor != null)) { c.fillStyle = fill; rrect(c, x, y, w, h, rad); c.fill(); }
+      if (num(p.BorderWidth) > 0) { c.strokeStyle = rgb(p.BorderColor) || 'rgba(148,163,184,0.4)'; c.lineWidth = num(p.BorderWidth); rrect(c, x + 0.5, y + 0.5, w - 1, h - 1, rad); c.stroke(); }
+    } else if (ctrl.type === 'container') {
       if (filled && back) { c.fillStyle = back; rrect(c, x, y, w, h, rad); c.fill(); }
       if (num(p.BorderWidth) > 0) { c.strokeStyle = rgb(p.BorderColor) || '#e2e8f0'; c.lineWidth = 1; rrect(c, x + 0.5, y + 0.5, w - 1, h - 1, rad); c.stroke(); }
     } else if (ctrl.type === 'textbox') {

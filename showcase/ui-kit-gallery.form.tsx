@@ -2,7 +2,7 @@
 // Cards, FormField, botões flat (variantes + ícone), Grid moderna (zebra) e
 // FormActions. O visual (cores/fontes/flat/cantos) vem 100% de vfp.theme.json —
 // trocar "mode" para "dark" re-estiliza esta vitrine inteira no próximo build.
-import { Form, Column, Row, Card, FormField, FlatButton, FormActions, Grid, GridColumn } from "@vfp/core";
+import { Form, Column, Row, Card, StatCard, FormField, FlatButton, FormActions, Grid, GridColumn } from "@vfp/core";
 import { createCursor, Char, Numeric } from "../fox";
 
 interface Cliente {
@@ -11,7 +11,7 @@ interface Cliente {
   limite: Numeric<10, 2>;
 }
 
-@Form({ caption: "FoxTS UI Kit", width: 600, height: 560 })
+@Form({ caption: "FoxTS UI Kit", width: 600, height: 660 })
 export class UiKitGalleryForm {
   Load(): void {
     const cur = createCursor<Cliente>("curGal");
@@ -29,6 +29,11 @@ export class UiKitGalleryForm {
   render() {
     return (
       <Column gap={14} padding={16}>
+        <Row gap={14} align="stretch">
+          <StatCard label="Vendas hoje" value="R$ 12.340" delta="+8%" grow={1} />
+          <StatCard label="Clientes" value="1.284" delta="+24" grow={1} />
+          <StatCard label="Cancelamentos" value="37" delta="-5%" grow={1} />
+        </Row>
         <Row gap={14} align="stretch">
           <Card title="Cadastro">
             <FormField label="Nome" required bind="nome" width={220} />
