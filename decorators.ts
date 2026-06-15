@@ -412,6 +412,33 @@ export interface FlatButtonProps extends FlexItemProps {
 }
 export const FlatButton: FC<FlatButtonProps> = (() => {}) as any;
 
+/** <Toolbar>: barra de comandos horizontal no topo do form (Win11/Fluent) — faixa
+ *  flat "surface" full-width segurando uma linha de <ToolbarButton> compactos, com
+ *  <ToolbarSeparator/> opcional entre grupos. Desugara p/ <Container> (row, bg surface
+ *  sem cantos/sombra) + flatbuttons ghost. Mesma técnica shape+container do FlatButton. */
+export interface ToolbarProps extends StyleProps, FlexItemProps {
+  name?: string;
+  gap?: number;           // espaco entre botoes (default 4)
+  children?: any;         // <ToolbarButton>/<ToolbarSeparator>
+}
+export const Toolbar: FC<ToolbarProps> = (() => {}) as any;
+
+/** <ToolbarButton label icon onClick variant>: botao compacto da <Toolbar> (icone e/ou
+ *  texto), hover por shade no shape de fundo. variant default "ghost" (chato/limpo);
+ *  use "primary"/"danger" p/ acoes de destaque. */
+export interface ToolbarButtonProps extends FlexItemProps {
+  label?: string;        // texto do botao (opcional se houver icon)
+  caption?: string;      // sinonimo de label
+  icon?: string;         // "save" -> icons/save.png (a esquerda do texto)
+  variant?: "primary" | "secondary" | "ghost" | "danger" | string; // default "ghost"
+  onClick?: string;      // metodo do form -> ThisForm.<m>()
+}
+export const ToolbarButton: FC<ToolbarButtonProps> = (() => {}) as any;
+
+/** <ToolbarSeparator/>: divisoria vertical fina entre grupos de botoes da <Toolbar>. */
+export interface ToolbarSeparatorProps { height?: number; }
+export const ToolbarSeparator: FC<ToolbarSeparatorProps> = (() => {}) as any;
+
 /** <FormActions ok cancel onOk onCancel>: conjunto pronto de ações à direita
  *  (Cancelar = secondary, OK/Salvar = primary). Substitui o par de botões colado à mão. */
 export interface FormActionsProps extends FlexItemProps {

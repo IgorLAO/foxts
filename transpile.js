@@ -1927,6 +1927,48 @@ function parseJsx(node, ctx, scope = {}) {
         w: typeof attrs.width === 'number' ? attrs.width : undefined,
         children: kids };
     }
+    // <Toolbar>: barra de comandos horizontal no topo do form (Win11/Fluent). Faixa
+    // flat "surface" full-width (mesmo `bg` do Card, mas SEM cantos nem sombra — encosta
+    // no topo) segurando uma linha de <ToolbarButton> compactos + <ToolbarSeparator>.
+    // Reaproveita a tecnica shape+container+hover do flatButton: cada botao e um leaf
+    // 'flatbutton' (default variant "ghost" = limpo/chato); o separador e um shape fino
+    // vertical pintado com a cor de borda (cor numerica -> reaplicada no Init por
+    // applyRuntimeColors). Desugara p/ <Container> (row, align center).
+    if (tag === 'Toolbar') {
+      const kids = jsxKids(node).map((c) => {
+        const ct = jsxTag(c);
+        const ca = readJsxAttrs(c, ctx, scope);
+        if (ct === 'ToolbarSeparator') {
+          // divisoria vertical: shape fino (largura 1) pintado com a cor de borda.
+          return { kind: 'control', baseclass: 'shape', node: c, attrs: {
+            color: 'border', width: 1, height: typeof ca.height === 'number' ? ca.height : 22, alignSelf: 'center' } };
+        }
+        if (ct === 'ToolbarButton') {
+          const label = typeof ca.label === 'string' ? ca.label : (typeof ca.caption === 'string' ? ca.caption : '');
+          return { kind: 'flatbutton', node: c, toolbar: true, attrs: {
+            caption: label,
+            variant: typeof ca.variant === 'string' ? ca.variant : 'ghost', // default limpo/chato
+            icon: typeof ca.icon === 'string' ? ca.icon : undefined,
+            onClick: typeof ca.onClick === 'string' ? ca.onClick : undefined,
+            height: typeof ca.height === 'number' ? ca.height : 28,
+            width: typeof ca.width === 'number' ? ca.width : undefined,
+          } };
+        }
+        throw new CompileError('<Toolbar> aceita apenas <ToolbarButton> e <ToolbarSeparator> como filhos', c, ctx.sf);
+      });
+      const containerAttrs = { alignSelf: 'stretch' };
+      for (const k of ['name', 'width', 'height', 'grow', 'flexGrow']) if (attrs[k] !== undefined) containerAttrs[k] = attrs[k];
+      return {
+        kind: 'container', dir: 'row', align: 'center',
+        gap: typeof attrs.gap === 'number' ? attrs.gap : 4,
+        pad: typeof attrs.padding === 'number' ? attrs.padding : (typeof attrs.pad === 'number' ? attrs.pad : 6),
+        attrs: containerAttrs,
+        bg: { color: typeof attrs.color === 'string' ? attrs.color : 'surface',
+          borderColor: 'border', rounded: 0, shadow: false }, // faixa flat: sem cantos nem sombra
+        node, children: kids,
+      };
+    }
+    if (tag === 'ToolbarButton' || tag === 'ToolbarSeparator') throw new CompileError(`<${tag}> só é válida dentro de <Toolbar>`, node, ctx.sf);
     // ── App shell / screen patterns ──────────────────────────────────────────────
     // <Sidebar width>: navegação vertical (app shell). Container coluna, largura fixa,
     // fundo surface, SEM cantos/sombra (encosta na borda). Filhos (<SidebarItem>) esticam.
@@ -2376,9 +2418,12 @@ function flatButtonLeaf(model, ctx, st) {
   // cores por variante. secondary/ghost contrastam com o card (surface) no dark:
   // secondary = preenchimento neutro destacado; ghost = transparente + texto colorido.
   const dark = THEME._mode === 'dark';
+  // botao de <Toolbar>: ghost SEM borda em repouso (so fill no hover) — o look Fluent
+  // limpo de barra de comandos (uma fileira de botoes com moldura pareceria "2003").
+  const toolbar = model.toolbar === true;
   let bg, fg, hover, border = null;
   if (variant === 'ghost') {
-    bg = null; fg = hexToRGB(THEME.primary); border = hexToRGB(THEME.border); hover = shade('surface', dark ? 18 : -8);
+    bg = null; fg = hexToRGB(THEME.primary); border = toolbar ? null : hexToRGB(THEME.border); hover = shade('surface', dark ? 18 : -8);
   } else if (variant === 'secondary') {
     bg = shade('surface', dark ? 22 : -10); fg = hexToRGB(THEME.onSurface); border = hexToRGB(THEME.border); hover = shade('surface', dark ? 34 : -20);
   } else if (variant === 'danger') {
@@ -2389,7 +2434,11 @@ function flatButtonLeaf(model, ctx, st) {
   const outline = border != null;
   const icon = typeof a.icon === 'string' ? iconPath(a.icon) : null;
   const click = typeof a.onClick === 'string' ? `ThisForm.${a.onClick}()` : '';
-  const w = typeof a.width === 'number' ? a.width : Math.max(86, caption.length * 7 + (icon ? 34 : 18));
+  // largura: botoes de toolbar sao compactos (snug ao conteudo; icon-only ~quadrado).
+  const w = typeof a.width === 'number' ? a.width
+    : toolbar
+      ? (caption ? caption.length * 7 + (icon ? 30 : 18) : (icon ? 32 : 32))
+      : Math.max(86, caption.length * 7 + (icon ? 34 : 18));
   const h = typeof a.height === 'number' ? a.height : 30;
   // cantos arredondados: Container.Curvature é no-op visual no VFP9; só Shape.Curvature
   // arredonda. Então o fundo do botão vira um SHAPE arredondado (atrás), e o container
@@ -2407,8 +2456,9 @@ function flatButtonLeaf(model, ctx, st) {
   return { w, h, grow: growOf(a), alignSelf: alignSelfOf(a), place: (x, y, W, H) => {
     // SHAPE de fundo arredondado (irmão do container, atrás dele). Curvature ~8 = cantos
     // suaves. Filled: BackStyle 1 + Fill/BackColor = bg. Ghost: transparente + borda.
+    const restBorderW = outline ? 1 : (bg ? 0 : (toolbar ? 0 : 1)); // toolbar ghost = sem moldura em repouso
     const shape = { type: 'shape', name: shp, left: x, top: y, width: W, height: H,
-      properties: { BackStyle: bg ? 1 : 0, FillStyle: bg ? 0 : 1, Curvature: 8, BorderWidth: outline ? 1 : (bg ? 0 : 1) } };
+      properties: { BackStyle: bg ? 1 : 0, FillStyle: bg ? 0 : 1, Curvature: 8, BorderWidth: restBorderW } };
     if (bg) { shape.properties.BackColor = bg; shape.properties.FillColor = bg; }
     if (outline) shape.properties.BorderColor = border;
     else if (bg) shape.properties.BorderColor = bg; // borda = fill (sem moldura visível)

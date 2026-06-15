@@ -100,9 +100,24 @@ no Init por `applyRuntimeColors`) cobre fundo + área vazia; `Column<N>.DynamicF
 ComboBox e scrollbars nativas continuam claras no dark** (controles owner-drawn pelo OS — vencer isso exige
 owner-draw/Windows API ou WebView2, fica p/ quando valer a pena).
 
+**Toolbar (FEITO — backlog #4):** `<Toolbar>` — barra de comandos horizontal (Win11/Fluent) no topo do form:
+faixa flat "surface" full-width (mesmo `bg` do Card, mas SEM cantos nem sombra — encosta no topo) segurando
+uma linha de `<ToolbarButton label icon onClick variant>` compactos, com `<ToolbarSeparator/>` opcional entre
+grupos. Desugara (parseJsx) p/ `<Container>` row + leaves `flatbutton`; cada botao reusa a tecnica
+shape+container+hover do `flatButtonLeaf` (shape arredondado de fundo + container transparente por cima;
+MouseEnter recolore o `FillColor`/`BackColor` do shape via `This.Parent.shp<name>`). Diferenca-chave do
+flatButton normal: flag `model.toolbar` faz o variant **ghost ficar SEM moldura em repouso** (so fill no
+hover) e os botoes ficam **compactos** (snug ao texto; icon-only ~quadrado 32px) — o look Fluent limpo (uma
+fileira de botoes com moldura pareceria "2003"). `variant` default = ghost; primary/danger destacam acoes.
+Separador = shape vertical fino (largura 1) pintado com a cor `border`. Cores numericas -> reaplicadas no Init
+por `applyRuntimeColors`, respeita light/dark. API/Props em `@vfp/core` (`ToolbarProps`/`ToolbarButtonProps`/
+`ToolbarSeparatorProps`). Showcase: `showcase/toolbar.form.tsx` (toolbar sobre Card + Grid master-detail).
+Conferido no preview/report (light+dark); o shot VFP real (`shot.sh`, BitBlt da tela) precisa de desktop
+visivel — nao captura headless neste ambiente, mas o SCX compila limpo pelo foxcli (oraculo de form real).
+
 **Backlog UI (ordem decidida pelo dono — inputs antes de chrome, pois é onde o usuário passa 80% do tempo):**
 1. inputs/grid acompanharem o tema **dark** (e estado de **foco** dos inputs); 2. `<SearchBox>`; 3. refinar
-`<Lookup>` (painel de busca custom, futuro); 4. `<Toolbar>`; 5. `<Dialog>`; 6. `<Sidebar>`/`<EmptyState>`.
+`<Lookup>` (painel de busca custom, futuro); 4. ~~`<Toolbar>`~~ ✅ FEITO; 5. `<Dialog>`; 6. `<Sidebar>`/`<EmptyState>`.
 Depois: comparador visual automático; minerar `/testesvf` (EXEs) e VFPX por padrões.
 (Grid "1 de N linhas" = IGNORAR por ora, decisão do dono.)
 
