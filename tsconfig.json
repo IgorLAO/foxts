@@ -1,7 +1,8 @@
 {
-  // Espelha as opções injetadas por código no loadProgram (transpile.js).
-  // Serve só para o EDITOR (IntelliSense, JSX, decorators, @vfp/core) e para
-  // `npx tsc --noEmit -p .` — o build NÃO lê este arquivo. Manter em sincronia.
+  // FONTE ÚNICA destas opções. O build (loadProgram em transpile.js) LE este
+  // arquivo via ts.parseJsonConfigFileContent; o EDITOR (IntelliSense, JSX,
+  // decorators, @vfp/core) e `npx tsc --noEmit -p .` usam o mesmo. O build apenas
+  // sobrepõe noEmit/module/moduleResolution por código. Edite aqui, nao no .js.
   "compilerOptions": {
     "strict": true,
     "noEmit": true,

@@ -1237,6 +1237,45 @@ function classText(cls) {
 // compile parseia + checa tipos e devolve as funcoes analisadas. Em modo nao
 // estrito, ignora qualquer statement que nao seja funcao (ex.: o `export const
 // form = {...}` do arquivo de autoria, lido a parte pelo orquestrador).
+// fallbackCompilerOptions: opções "de fábrica" usadas quando o tsconfig.json da
+// raiz some ou nao parseia — espelham o que o tsconfig declara. baseUrl/paths
+// resolvem relativo a __dirname (raiz do repo) para que "@vfp/core" -> decorators
+// funcione independentemente da pasta do arquivo de entrada.
+function fallbackCompilerOptions() {
+  return {
+    strict: true,
+    experimentalDecorators: true,
+    target: ts.ScriptTarget.ES2020,
+    lib: ['lib.es2020.d.ts'],
+    jsx: ts.JsxEmit.Preserve, // forms .tsx: render() devolve JSX lido estruturalmente
+    // "@vfp/core" (decorators, FormManager) resolve para a lib empacotada — assim
+    // um projeto scaffolded usa o import publico sem precisar instalar nada.
+    baseUrl: __dirname,
+    paths: { '@vfp/core': ['decorators'] },
+  };
+}
+
+// readRootCompilerOptions: le o tsconfig.json da raiz do repo como FONTE ÚNICA
+// das opções (jsx/strict/experimentalDecorators/paths/baseUrl/target/lib). Resolve
+// tudo relativo a __dirname (raiz), nao a pasta do arquivo de entrada. Se o arquivo
+// some ou nao parseia, devolve os defaults de fallbackCompilerOptions() — nunca crasha.
+function readRootCompilerOptions() {
+  try {
+    const cfgPath = path.join(__dirname, 'tsconfig.json');
+    const read = ts.readConfigFile(cfgPath, ts.sys.readFile);
+    if (read.error || !read.config) return fallbackCompilerOptions();
+    // parseJsonConfigFileContent resolve baseUrl/paths/lib relativo a __dirname e
+    // converte strings ("ES2020", "preserve") nos enums da API do TS.
+    const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, __dirname);
+    if (!parsed.options || (parsed.errors && parsed.errors.some((e) => e.category === ts.DiagnosticCategory.Error))) {
+      return fallbackCompilerOptions();
+    }
+    return parsed.options;
+  } catch {
+    return fallbackCompilerOptions();
+  }
+}
+
 // loadProgram: cria o Program, valida tipagem e devolve { sf, checker }.
 function loadProgram(entry) {
   const abs = path.resolve(entry);
@@ -1244,22 +1283,17 @@ function loadProgram(entry) {
   // file mas nunca e emitido — compile() so percorre o arquivo de entrada.
   const globals = path.join(__dirname, 'globals.d.ts');
   const roots = require('fs').existsSync(globals) ? [globals, abs] : [abs];
-  // NOTA: o tsconfig.json da raiz ESPELHA estas opções (só para o editor/tsc);
-  // qualquer mudança aqui deve ser replicada lá (ler o tsconfig = melhoria futura).
-  const program = ts.createProgram(roots, {
-    strict: true,
+  // FONTE ÚNICA: jsx/strict/experimentalDecorators/paths/baseUrl/target/lib vêm do
+  // tsconfig.json da raiz (lido via readRootCompilerOptions). Aqui só forçamos o que
+  // PRECISA ser programatico: noEmit (so checamos tipos) e module/moduleResolution
+  // (resolucao de imports do compilador, independente do que o editor usa).
+  const options = {
+    ...readRootCompilerOptions(),
     noEmit: true,
-    experimentalDecorators: true,
-    target: ts.ScriptTarget.ES2020,
     module: ts.ModuleKind.CommonJS,
     moduleResolution: ts.ModuleResolutionKind.Node10 || ts.ModuleResolutionKind.NodeJs,
-    lib: ['lib.es2020.d.ts'],
-    jsx: ts.JsxEmit.Preserve, // forms .tsx: render() devolve JSX lido estruturalmente
-    // "@vfp/core" (decorators, FormManager) resolve para a lib empacotada — assim
-    // um projeto scaffolded usa o import publico sem precisar instalar nada.
-    baseUrl: __dirname,
-    paths: { '@vfp/core': ['decorators'] },
-  });
+  };
+  const program = ts.createProgram(roots, options);
   const sf = program.getSourceFile(abs);
   if (!sf) throw new Error(`arquivo nao encontrado: ${entry}`);
   // reporta erros de TODOS os arquivos do programa (entry + imports), nao so do
