@@ -256,6 +256,9 @@ export const Page: FC<PageProps> = (() => {}) as any;
 /** <Grid source><GridColumn/></Grid>: grid com colunas reais ligado a um cursor. */
 export interface GridProps extends StyleProps, FlexItemProps {
   name?: string;
+  columns?: number;       // GRID DE LAYOUT (sem source): distribui os filhos em N colunas
+  gap?: number;           // espaçamento do grid de layout
+  padding?: number;
   source?: string;        // alias do cursor -> RecordSource (RecordSourceType=1)
   recordSource?: string;  // sinônimo de source
   // chrome moderno (defaults ligados; passe false/numero p/ sobrepor):
@@ -313,7 +316,14 @@ export interface CardProps extends StyleProps, FlexItemProps {
   pad?: number;
   children?: any;
 }
-export const Card: FC<CardProps> = (() => {}) as any;
+/** Seções compound do Card (estilo React): <Card.Header>/<Card.Body>/<Card.Footer>.
+ *  Header = título + divisória; Body = conteúdo; Footer = linha de ações à direita. */
+export interface CardSectionProps { children?: any; }
+const CardRoot: FC<CardProps> = (() => {}) as any;
+const CardHeader: FC<CardSectionProps> = (() => {}) as any;
+const CardBody: FC<CardSectionProps> = (() => {}) as any;
+const CardFooter: FC<CardSectionProps> = (() => {}) as any;
+export const Card = Object.assign(CardRoot, { Header: CardHeader, Body: CardBody, Footer: CardFooter });
 
 /** <StatCard label value delta>: cartão de métrica de dashboard (label muted + valor
  *  grande + delta colorido pelo sinal: + verde / - vermelho). Reaproveita o fundo do
@@ -357,6 +367,54 @@ export interface LookupProps extends FlexItemProps {
   onInteractiveChange?: string;
 }
 export const Lookup: FC<LookupProps> = (() => {}) as any;
+
+// ── Ícones (SVG do Lucide rasterizado p/ PNG em build-time) ───────────────────
+
+/** <Icon name size color/>: ícone vetorial (Lucide) rasterizado em PNG no build e
+ *  exibido num controle Image (alpha). `color` escolhe a variante recolorida pelo tema. */
+export interface IconProps extends FlexItemProps {
+  name?: string;     // nome do ícone (save, search, user, ...) -> icons/<name>.png
+  size?: number;     // largura=altura em px (default 18)
+  color?: string;    // variante de cor (token do tema) -> icons/<name>-<color>.png
+  id?: string;       // nome do controle Image (opcional)
+}
+export const Icon: FC<IconProps> = (() => {}) as any;
+
+/** Aliases nomeados estilo lucide-react: <SaveIcon/> = <Icon name="save"/>. */
+export type IconAliasProps = Omit<IconProps, 'name'>;
+export const SaveIcon: FC<IconAliasProps> = (() => {}) as any;
+export const SearchIcon: FC<IconAliasProps> = (() => {}) as any;
+export const UserIcon: FC<IconAliasProps> = (() => {}) as any;
+export const UsersIcon: FC<IconAliasProps> = (() => {}) as any;
+export const SettingsIcon: FC<IconAliasProps> = (() => {}) as any;
+export const TrashIcon: FC<IconAliasProps> = (() => {}) as any;
+export const PlusIcon: FC<IconAliasProps> = (() => {}) as any;
+export const EditIcon: FC<IconAliasProps> = (() => {}) as any;
+export const HomeIcon: FC<IconAliasProps> = (() => {}) as any;
+export const ChartIcon: FC<IconAliasProps> = (() => {}) as any;
+export const BagIcon: FC<IconAliasProps> = (() => {}) as any;
+export const BellIcon: FC<IconAliasProps> = (() => {}) as any;
+export const CheckIcon: FC<IconAliasProps> = (() => {}) as any;
+export const XIcon: FC<IconAliasProps> = (() => {}) as any;
+export const FileIcon: FC<IconAliasProps> = (() => {}) as any;
+export const FolderIcon: FC<IconAliasProps> = (() => {}) as any;
+export const CreditCardIcon: FC<IconAliasProps> = (() => {}) as any;
+export const LogOutIcon: FC<IconAliasProps> = (() => {}) as any;
+export const MenuIcon: FC<IconAliasProps> = (() => {}) as any;
+
+// ── Composição genérica ───────────────────────────────────────────────────────
+
+/** <Slot/>: ponto de inserção dos children dentro do render() de um @Component
+ *  (composição estilo React). Os filhos do USO fluem para onde o <Slot/> está. */
+export interface SlotProps {
+  direction?: 'row' | 'column';
+  gap?: number;
+  padding?: number;
+  align?: string;
+  justify?: string;
+  children?: any;
+}
+export const Slot: FC<SlotProps> = (() => {}) as any;
 
 // ── App shell / screen patterns ──────────────────────────────────────────────
 

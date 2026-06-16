@@ -115,6 +115,38 @@ por `applyRuntimeColors`, respeita light/dark. API/Props em `@vfp/core` (`Toolba
 Conferido no preview/report (light+dark); o shot VFP real (`shot.sh`, BitBlt da tela) precisa de desktop
 visivel — nao captura headless neste ambiente, mas o SCX compila limpo pelo foxcli (oraculo de form real).
 
+**Modelo de composição estilo React (FEITO — provado em VFP real + oráculos):** salto de "tags" p/ um
+modelo de composição de verdade no compilador (`transpile.js`) e tipos (`decorators.ts`). (1) **children /
+`<Slot/>`:** ao expandir um `@Component`, os filhos do USO entram em `scope.__children` (com o `ctx`+`scope`
+do CHAMADOR) e o `<Slot/>` os reinjeta — funciona **cross-file** (o parse do `render()` do componente usa o
+sourceFile DELE, senão `node.getText` corta texto do arquivo errado; os children carregam o ctx do chamador).
+Ver `followToComponentClass`/`compSf`/`__children`. (2) **compound components:** tag pontuada `Card.Header`
+resolve via símbolo (`Object.assign(Card,{Header,Body,Footer})` em `@vfp/core`); o `<Card>` built-in coleta
+`<Card.Header>` (título+divisória) / `<Card.Body>` / `<Card.Footer>` (linha de ações à direita). (3) **ícones
+SVG:** `<Icon name size color>` + aliases nomeados estilo lucide-react (`<SaveIcon/>`/`<SearchIcon/>`…, tabela
+`NAMED_ICONS`) → controle `image` (`Picture=icons/<name>[-<cor>].png`, `BackStyle 0`); SVGs do **Lucide**
+rasterizados p/ PNG no build via `@resvg/resvg-js` (`showcase/react-app/icons/build-icons.js`). **🔑 Achado de
+plataforma:** o **Image do VFP9 NÃO escala PNG alpha de forma confiável** (`Stretch` ignorado p/ PNG 32-bit —
+desenha no tamanho NATIVO); por isso os ícones são rasterizados no **tamanho exato de exibição** e os controles
+usam o mesmo tamanho (senão o PNG vaza por cima do texto). VFP resolve `Picture` relativo ao **dir do .SCX** →
+`build.sh` copia `icons/` p/ `dist/icons`. (4) **`<Grid columns={N}>`** (sem `source`) = grid de **LAYOUT**
+declarativo (distribui filhos em N colunas); `<Grid source>` (dados) inalterado. (5) **texto-filho vira caption**
+(`jsxText`): `<Button>Salvar</Button>`. **Navegação entre páginas (sidebar):** `<SidebarItem onClick="irX">` →
+método `irX(){ FormManager.open(OutraPagina); this.Release(); }` (página `extends FoxForm`; `declare class
+OutraPagina {}` ambiente evita import circular). Dois requisitos descobertos: (a) **`DataSession: 2`** em
+`@Form({props})` — sem isso 2 forms colidem no mesmo cursor no hand-off do Release; (b) **`SET PATH TO <dir dos
+SCX>`** no runner (`FormManager.open` emite `DO FORM <Nome>` bare; o VFP resolve o `.scx` pela PATH) — por isso
+os showcases têm `run.prg`. Showcases novos (estrutura web real `components/ layouts/ pages/ icons/`):
+`showcase/react-app/` (dashboard+clientes, navegação por sidebar) e `showcase/apostas-app/` (apostas/odds).
+Oráculos `verifychildren.js`/`verifycompound.js`/`verifyicons.js`/`verifyhover.js`. **Hover (regressão
+corrigida):** o VFP dispara `MouseEnter`/`MouseLeave` **com parâmetros** → todo evento de hover precisa de
+`LPARAMETERS nButton,nShift,nXCoord,nYCoord` (senão erro 1229 "No PARAMETER statement"); e o SHAPE recolorido é
+IRMÃO do container do botão → label/imagem (filhas) usam `This.Parent.Parent.<shp>`, container usa
+`This.Parent.<shp>` (injetado em `finalizeFormIR`; `verifyhover.js` cobre os 2 caminhos). Ex.:
+`examples/reactkit.form.tsx`, `examples/hover.form.tsx`. **Pendente de reconciliação:** ainda **não commitado**
+(working tree) — `git status` mostra `decorators.ts`/`transpile.js` modificados + os 4 `verify*.js`/2 examples/2
+showcases novos.
+
 **Backlog UI (ordem decidida pelo dono — inputs antes de chrome, pois é onde o usuário passa 80% do tempo):**
 1. inputs/grid acompanharem o tema **dark** (e estado de **foco** dos inputs); 2. `<SearchBox>`; 3. refinar
 `<Lookup>` (painel de busca custom, futuro); 4. ~~`<Toolbar>`~~ ✅ FEITO; 5. `<Dialog>`; 6. `<Sidebar>`/`<EmptyState>`.
@@ -137,7 +169,7 @@ Depois: comparador visual automático; minerar `/testesvf` (EXEs) e VFPX por pad
 - **Frente H1 — linter (FEITO):** `lint.js` (`npm run lint`) sinaliza async/await/Promise/Symbol/generators com file:line:col antes do build (DX; o transpilador já rejeita no build).
 - **B3 — dedupe de nomes (FEITO):** `finalizeFormIR` torna nomes de controle únicos (case-insensitive) — dois `<SaveButton/>`/`<CustomerLookup/>` viram `cmdSalvar`/`cmdSalvar2` etc.
 - **Frente D — query builder (FEITO):** `from("T").select(...).where(campo, valor).whereRaw(expr).join(t,on).leftJoin(t,on).groupBy(...).having(expr).orderBy(campo)` + terminais `.all("cur")` / `.first("cur")` (= `SELECT TOP 1`) / `.first()` (objeto-linha) / `.count()` (escalar). **Dois terminais-expressão** (capturados, rejeitados inline com erro claro): `.count()` → `SELECT COUNT(*) ... INTO ARRAY tmp; n = tmp[1]`; `.first()` sem cursor → `SELECT TOP 1 ... INTO CURSOR tmp; IF _TALLY>0 SCATTER NAME alvo MEMO ELSE alvo=.NULL.` (acessar `loRow.campo` lê as propriedades). Acesso a propriedade de objeto/instância (`recv.prop`) passa direto p/ receptores não-primitivos (espelha `recv.metodo()`). Provado em runtime no VFP (`verify:query`, **6/6**: filtro composto, count, first("cur"), **first()→objeto**, group/having, join). `reccount(name)` → `RECCOUNT`. **Transações SQL + SQLGETPROP/SQLSETPROP ✅ (FEITO):** `db.begin()/commit()/rollback()` → `SQLEXEC(db, "BEGIN/COMMIT/ROLLBACK TRANSACTION")` (pass-through T-SQL); `db.getProp(p)` → `SQLGETPROP(db, p)`, `db.setProp(p, v)` → `SQLSETPROP(db, p, v)` (modo manual via `setProp("Transactions", 2)`). Espelha o caminho de `db.exec/disconnect` (`lowerSqlMethod`/`isConnection`). Ex.: função `transferir()` em `examples/sql.ts`. Provado em build (`verifysql.js`: asserções estruturais do SQL gerado + `foxcli compile` valida a sintaxe FoxPro — sem servidor SQL vivo). **Guarda var 1-letra ✅** e **default de bind por tipo ✅** (ver dívida abaixo, agora resolvidos). **Frente D fechada.**
-- **Runner:** `test.js` agora **auto-descobre** `verify*.js`. `npm test` = **38/38** (oráculos `verify*.js` + build de todo `examples/*.form.ts(x)`; contagem cresce com a suíte — era 32/32, hoje 38/38). Novos: `verifyguard.js` (guarda var 1-letra, build-time **2/2**) e `verifybinddefault.js` (default de bind por tipo, build+VFP **5/5**); `verifysql.js` ampliado com transações/SQLGETPROP.
+- **Runner:** `test.js` agora **auto-descobre** `verify*.js`. `npm test` = **44/44** (oráculos `verify*.js` + build de todo `examples/*.form.ts(x)`; contagem cresce com a suíte — era 32/32 → 38/38 → hoje 44/44). Novos: `verifyguard.js` (guarda var 1-letra, build-time **2/2**) e `verifybinddefault.js` (default de bind por tipo, build+VFP **5/5**); `verifysql.js` ampliado com transações/SQLGETPROP; e o lote da composição React: `verifychildren.js`/`verifycompound.js`/`verifyicons.js`/`verifyhover.js`.
 - **Frente F — validação (FEITO):** schema estilo Zod nos models. `export const Cliente = schema({ nome: str().required().min(3).max(10), uf: str().len(2), email: str().email(), idade: num().min(18).max(120) })` → `PROCEDURE ValidarCliente(toObj)` que devolve `""` (válido) ou a 1ª mensagem de erro. Regras: `str` (`required/min/max/len/email`), `num` (`required/min/max/int`). Uso em form: `MESSAGEBOX(ValidarCliente(loObj))` no `Valid`. **Regras custom `.refine`** ✅: `str()/num().refine(v => <expr booleano>, "mensagem")` — predicado estilo Zod (TRUE = válido); o corpo do arrow é transpilado (reusa `emitExpr`) com o parâmetro substituído pela ref do campo (`ctx.subst`), virando `IF NOT (<cond>) RETURN "mensagem"`. Provado no VFP (`verify:validate`, **7/7**: + `nome_refine` e `idade_refine`). Ex.: `examples/validate.ts`. **i18n** ✅: as mensagens das regras built-in vêm de um catálogo sobreponível (`MESSAGES`, templates `{field}`/`{n}` interpolados em build-time). Default PT; o projeto troca via `vfp.messages.json` (carregado por foxc/vfp, igual ao tema) ou `setMessages({...})`. Só o TEXTO muda — a lógica é fixa; mensagens de `.refine` são explícitas (não traduzidas). Provado no VFP com catálogo EN (`verifyi18n.js`, **5/5**). Frente F **fechada**.
 - **Frente F — validação do form direto do schema (FEITO):** `@Form({ validate: Cliente })` (com `const Cliente = schema({...})` no mesmo arquivo) gera o método `ThisForm.Validar()` — as MESMAS checagens do schema, mas lendo `ThisForm.<campo>` (o membro vinculado por `bind="campo"`), autocontido (sem `PROCEDURE` externa para linkar). Devolve `""` ou a 1ª mensagem. Uso: `IF NOT EMPTY(ThisForm.Validar()) ... MESSAGEBOX(ThisForm.Validar())` no Click do Salvar. Refatorei `emitValidator` → `schemaCheckLines(shape, refOf, ...)` reusado pelos dois caminhos (`toObj.x` vs `ThisForm.x`). Provado em runtime: `verifyformvalidate.js` (**4/4**, instancia NOSHOW, seta campos, confere retorno). Ex.: `examples/cadvalida.form.tsx`. **Nota (resolvida):** campo numérico vindo de `bind` agora tem default `0` (não `""`) — o tipo é inferido do schema de `validate` (ver `bindMemberDefault`/`verifybinddefault.js`), então `Validar()` antes de qualquer input compara `0 < n` corretamente.
 - **E1 — tema externo (FEITO):** `vfp.theme.json` no projeto (`{ "colors": { "primary": "#.." } }`) → `setTheme` mescla no `THEME`; `variant/color/class` usam a paleta do projeto.

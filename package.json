@@ -66,6 +66,7 @@
     "build:form": "node foxc.js build examples/dias.form.ts -o dist/frmdiasts.scx"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "typescript": "^5.6.0",
     "yoga-layout": "^3.2.1"
   }

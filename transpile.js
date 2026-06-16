@@ -1448,6 +1448,15 @@ const JSX_BASECLASS = {
   CommandButton: 'commandbutton', CheckBox: 'checkbox', ComboBox: 'combobox',
   Grid: 'grid', Timer: 'timer', Image: 'image', Shape: 'shape', OptionGroup: 'optiongroup',
 };
+// NAMED_ICONS: aliases estilo lucide-react (<SaveIcon/> = <Icon name="save"/>). O nome
+// casa com o PNG gerado por showcase/.../build-icons.js (rasteriza o SVG do Lucide).
+const NAMED_ICONS = {
+  SaveIcon: 'save', SearchIcon: 'search', UserIcon: 'user', UsersIcon: 'users',
+  SettingsIcon: 'settings', TrashIcon: 'trash', PlusIcon: 'plus', EditIcon: 'edit',
+  HomeIcon: 'home', ChartIcon: 'chart', BagIcon: 'bag', BellIcon: 'bell',
+  CheckIcon: 'check', XIcon: 'x', FileIcon: 'file', FolderIcon: 'folder',
+  CreditCardIcon: 'credit-card', LogOutIcon: 'log-out', MenuIcon: 'menu',
+};
 const SIZE_DEFAULTS = {
   label: { w: 100, h: 17 }, textbox: { w: 120, h: 23 }, editbox: { w: 180, h: 60 },
   commandbutton: { w: 100, h: 27 }, checkbox: { w: 140, h: 20 }, combobox: { w: 120, h: 23 },
@@ -1705,20 +1714,44 @@ function readJsxAttrs(node, ctx, scope = {}) {
   return out;
 }
 
-// resolveComponentClass: tag JSX (<SaveButton/>) -> a ClassDeclaration @Component
-// que ela referencia (segue alias de import via checker). null se não for componente.
+// followToComponentClass: a partir de um símbolo, encontra a ClassDeclaration @Component
+// que ele (eventualmente) designa. Segue alias de import e, p/ compound components, a
+// atribuição de propriedade `Object.assign(Card, { Header: CardHeader })` -> identifier
+// CardHeader -> a classe. `depth` evita laço em shorthand recursivo.
+function followToComponentClass(sym, ctx, depth = 0) {
+  if (!sym || depth > 6) return null;
+  if (sym.flags & ts.SymbolFlags.Alias) sym = ctx.checker.getAliasedSymbol(sym);
+  const decls = sym.declarations || [];
+  const cls = decls.find((d) => ts.isClassDeclaration(d) && hasDeco(d, 'Component'));
+  if (cls) return cls;
+  // propriedade de um objeto ({ Header: CardHeader }) -> segue o identifier do valor
+  for (const d of decls) {
+    let init = null;
+    if (ts.isPropertyAssignment(d)) init = d.initializer;
+    else if (ts.isShorthandPropertyAssignment(d)) init = d.name;
+    if (init && ts.isIdentifier(init)) {
+      const r = followToComponentClass(ctx.checker.getSymbolAtLocation(init), ctx, depth + 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+// resolveComponentClass: tag JSX (<SaveButton/> ou <Card.Header/>) -> a ClassDeclaration
+// @Component que ela referencia. Aceita tag simples e pontuada (compound). null se não.
 function resolveComponentClass(node, ctx) {
   const el = ts.isJsxElement(node) ? node.openingElement : node;
-  let sym = ctx.checker.getSymbolAtLocation(el.tagName);
-  if (sym && sym.flags & ts.SymbolFlags.Alias) sym = ctx.checker.getAliasedSymbol(sym);
-  const decls = (sym && sym.declarations) || [];
-  return decls.find((d) => ts.isClassDeclaration(d) && hasDeco(d, 'Component')) || null;
+  return followToComponentClass(ctx.checker.getSymbolAtLocation(el.tagName), ctx);
 }
 
 const jsxKids = (node) => (ts.isJsxElement(node) ? Array.from(node.children) : []).filter(
   (c) => ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c) || ts.isJsxFragment(c)
 );
 const jsxTag = (node) => (ts.isJsxElement(node) ? node.openingElement : node).tagName.getText();
+// jsxText: texto literal direto de um elemento (<Button>Salvar</Button> -> "Salvar").
+// Estilo React: o conteúdo textual vira a caption/título do controle (ver parseJsx).
+const jsxText = (node) => !ts.isJsxElement(node) ? '' :
+  node.children.filter((c) => ts.isJsxText(c)).map((c) => c.text.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ');
 
 // parseJsx: nó JSX -> modelo de layout/controle. `scope` carrega as props quando
 // estamos dentro do render() expandido de um @Component.
@@ -1728,6 +1761,27 @@ function parseJsx(node, ctx, scope = {}) {
   if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)) {
     const tag = jsxTag(node);
     const attrs = readJsxAttrs(node, ctx, scope);
+    // Texto-filho vira caption (estilo React: <Button>Salvar</Button>, <Label>Oi</Label>,
+    // <Card.Header>Titulo</Card.Header>). Só preenche se não houver caption explícita.
+    { const t = jsxText(node); if (t && attrs.caption === undefined) attrs.caption = t; }
+    // <Slot/>: ponto de inserção dos children dentro do render() de um @Component.
+    // Os filhos do USO (<MyCard><Field/></MyCard>) chegam em scope.__children já com
+    // o escopo do CHAMADOR (closure léxica) — aqui são parseados e splicados. Sem
+    // children, o slot é um box vazio (some no layout). `direction`/`gap` opcionais.
+    if (tag === 'Slot') {
+      const slot = scope && scope.__children;
+      const nodes = slot ? slot.nodes : [];
+      const callerScope = slot ? slot.scope : {};
+      const callerCtx = slot && slot.ctx ? slot.ctx : ctx; // children pertencem ao arquivo do CHAMADOR
+      return {
+        kind: 'box', dir: attrs.direction === 'row' ? 'row' : 'column',
+        gap: typeof attrs.gap === 'number' ? attrs.gap : 10,
+        pad: typeof attrs.padding === 'number' ? attrs.padding : 0,
+        align: typeof attrs.align === 'string' ? attrs.align : undefined,
+        justify: typeof attrs.justify === 'string' ? attrs.justify : undefined,
+        children: nodes.map((c) => parseJsx(c, callerCtx, callerScope)),
+      };
+    }
     if (tag === 'Column' || tag === 'Row' || tag === 'View') {
       const dir = tag === 'Row' ? 'row' : tag === 'Column' ? 'column' : (attrs.flexDirection === 'row' ? 'row' : 'column');
       return {
@@ -1776,6 +1830,22 @@ function parseJsx(node, ctx, scope = {}) {
       return { kind: 'pageframe', attrs, node, pages };
     }
     if (tag === 'Page') throw new CompileError('<Page> só é válida dentro de <PageFrame>', node, ctx.sf);
+    // <Grid columns={N} gap>: GRID DE LAYOUT declarativo (estilo CSS grid) — distribui os
+    // filhos em N colunas, sem coordenadas. Açúcar sobre Column-de-Rows; cada célula cresce
+    // igualmente (grow=1 injetado). Difere do <Grid source> (grade de dados) pela prop columns.
+    if (tag === 'Grid' && typeof attrs.columns === 'number') {
+      const cols = Math.max(1, attrs.columns);
+      const gap = typeof attrs.gap === 'number' ? attrs.gap : 12;
+      const kids = jsxKids(node).map((c) => parseJsx(c, ctx, scope));
+      for (const k of kids) { // célula cresce p/ preencher a coluna (sem largura fixa)
+        if (k && k.kind === 'container') { k.attrs = k.attrs || {}; if (k.attrs.grow === undefined && k.attrs.flexGrow === undefined) k.attrs.grow = 1; }
+      }
+      const rows = [];
+      for (let i = 0; i < kids.length; i += cols)
+        rows.push({ kind: 'box', dir: 'row', gap, pad: 0, align: 'stretch', children: kids.slice(i, i + cols) });
+      return { kind: 'box', dir: 'column', gap, pad: typeof attrs.padding === 'number' ? attrs.padding : 0,
+        w: typeof attrs.width === 'number' ? attrs.width : undefined, children: rows };
+    }
     // <Grid> com <GridColumn> -> grid com COLUNAS REAIS (ColumnCount + ColumnN.*).
     // Sem filhos vira um grid simples (folha de controle, compat. com grids "ColumnCount:-1").
     if (tag === 'Grid') {
@@ -1790,17 +1860,38 @@ function parseJsx(node, ctx, scope = {}) {
     // <Card title>: Container surface + cantos arredondados + borda neutra + padding,
     // com um Label de título (bold, onSurface) acima dos filhos. Re-estiliza via tokens.
     if (tag === 'Card') {
-      const title = typeof attrs.title === 'string' ? attrs.title : undefined;
-      const kids = jsxKids(node).map((c) => parseJsx(c, ctx, scope));
-      const titleModel = title ? { kind: 'control', baseclass: 'label', node, attrs: {
-        caption: title, bold: true, textColor: 'onSurface', fontSize: 13, width: Math.max(120, title.length * 8),
-        fontName: THEME.fontTitle || THEME.fontBody || THEME.font, transparent: true, // papel "título", fundo transparente
-      } } : null;
-      // divisória fina sob o título (separa header do conteúdo — padrão Win11 Settings)
-      const dividerModel = title ? { kind: 'control', baseclass: 'shape', node, attrs: {
-        color: 'border', height: 1, alignSelf: 'stretch',
-      } } : null;
-      const head = titleModel ? [titleModel, dividerModel] : [];
+      const titleLabel = (txt) => ({ kind: 'control', baseclass: 'label', node, attrs: {
+        caption: txt, bold: true, textColor: 'onSurface', fontSize: 13, width: Math.max(120, txt.length * 9),
+        fontName: THEME.fontTitle || THEME.fontBody || THEME.font, transparent: true } });
+      const divider = () => ({ kind: 'control', baseclass: 'shape', node, attrs: { color: 'border', height: 1, alignSelf: 'stretch' } });
+      const directKids = jsxKids(node);
+      const isCompound = directKids.some((c) => /^Card\.(Header|Body|Footer)$/.test(jsxTag(c)));
+      let head = [], kids = [], foot = [];
+      if (isCompound) {
+        // Compound components: <Card.Header>/<Card.Body>/<Card.Footer> (estilo React).
+        // Header = título + divisória; Body = conteúdo; Footer = linha de ações à direita.
+        for (const c of directKids) {
+          const t = jsxTag(c);
+          const ca = readJsxAttrs(c, ctx, scope);
+          const subText = jsxText(c);
+          const sub = jsxKids(c).map((g) => parseJsx(g, ctx, scope));
+          if (t === 'Card.Header') {
+            if (subText) head.push(titleLabel(subText));
+            head.push(...sub, divider());
+          } else if (t === 'Card.Body') {
+            kids.push(...sub);
+          } else if (t === 'Card.Footer') {
+            foot.push({ kind: 'box', dir: 'row', gap: 8, pad: 0, justify: 'end', align: 'center', children: sub });
+          } else {
+            throw new CompileError(`<Card> compound aceita apenas <Card.Header>/<Card.Body>/<Card.Footer> (recebeu <${t}/>)`, c, ctx.sf);
+          }
+        }
+      } else {
+        // modo simples (compat): <Card title> + filhos diretos.
+        const title = typeof attrs.title === 'string' ? attrs.title : undefined;
+        kids = directKids.map((c) => parseJsx(c, ctx, scope));
+        if (title) head = [titleLabel(title), divider()];
+      }
       // fundo do card = SHAPE arredondado atrás (Container não arredonda); container transparente.
       const containerAttrs = {};
       for (const k of ['name', 'width', 'height', 'grow', 'flexGrow', 'alignSelf']) if (attrs[k] !== undefined) containerAttrs[k] = attrs[k];
@@ -1815,9 +1906,11 @@ function parseJsx(node, ctx, scope = {}) {
           rounded: typeof attrs.rounded === 'number' ? attrs.rounded : 22,
         },
         node,
-        children: [...head, ...kids],
+        children: [...head, ...kids, ...foot],
       };
     }
+    // <Card.Header>/<Card.Body>/<Card.Footer> só valem dentro de <Card> (compound).
+    if (/^Card\.(Header|Body|Footer)$/.test(tag)) throw new CompileError(`<${tag}> só é válido dentro de <Card>`, node, ctx.sf);
     // <StatCard label value delta>: cartão de métrica de dashboard. Reaproveita o `bg`
     // do Card (shape arredondado + sombra de elevação) e empilha: label (muted, pequeno),
     // valor (grande, bold, fontTitle) e delta opcional (verde se sobe, vermelho se cai —
@@ -2033,13 +2126,42 @@ function parseJsx(node, ctx, scope = {}) {
         w: typeof attrs.width === 'number' ? attrs.width : undefined,
         h: typeof attrs.height === 'number' ? attrs.height : undefined, children: kids };
     }
+    // <Icon name size color/> e aliases nomeados (<SaveIcon/>): vira um controle Image
+    // apontando p/ o PNG do ícone (rasterizado do SVG do Lucide). BackStyle 0 = alpha.
+    // `color` escolhe a variante recolorida (icons/<name>-<color>.png); sem cor = default.
+    if (tag === 'Icon' || NAMED_ICONS[tag]) {
+      const name = NAMED_ICONS[tag] || (typeof attrs.name === 'string' ? attrs.name : null);
+      if (!name) throw new CompileError('<Icon> precisa de name="..." (ex.: <Icon name="save"/>)', node, ctx.sf);
+      const size = typeof attrs.size === 'number' ? attrs.size : 16; // casa com RENDER_PX (VFP nao escala PNG alpha)
+      const color = typeof attrs.color === 'string' ? attrs.color : null;
+      const file = color ? `icons/${name}-${color}.png` : `icons/${name}.png`;
+      const iconAttrs = { src: file, width: size, height: size, stretch: 1, props: { BackStyle: 0 } };
+      if (typeof attrs.name === 'string' && tag === 'Icon' && typeof attrs.id === 'string') iconAttrs.name = attrs.id;
+      if (typeof attrs.alignSelf === 'string') iconAttrs.alignSelf = attrs.alignSelf;
+      return { kind: 'control', baseclass: 'image', node, attrs: iconAttrs };
+    }
     if (JSX_BASECLASS[tag]) return { kind: 'control', baseclass: JSX_BASECLASS[tag], attrs, node };
-    // @Component do usuário: expande o render() dele inline, com as props do uso
+    // @Component do usuário: expande o render() dele inline, com as props do uso.
+    // Os children do uso entram no escopo como __children (com o escopo do CHAMADOR),
+    // para que um <Slot/> dentro do render() os reinjete (composição estilo React).
     const comp = resolveComponentClass(node, ctx);
     if (comp) {
-      const renderM = comp.members.find((m) => ts.isMethodDeclaration(m) && m.name.getText(ctx.sf) === 'render');
+      // O @Component pode viver em OUTRO arquivo (components/, layouts/). O parse do seu
+      // render() usa o sourceFile DELE (getText/pos batem); os children do uso continuam
+      // com o ctx do CHAMADOR (carregado em __children.ctx) p/ o <Slot/> reinjetar certo.
+      // guarda de recursão: ciclo de composição (A->A ou A->B->A) -> CompileError claro,
+      // não RangeError de stack. A cadeia atual viaja em ctx.__expanding (Set de classes);
+      // como os children do <Slot/> são parseados com o ctx do CHAMADOR (que carrega a
+      // cadeia), recursão via children também é pega.
+      const expanding = ctx.__expanding || new Set();
+      if (expanding.has(comp)) throw new CompileError(`@Component <${tag}/> recursivo (ciclo de composicao)`, node, ctx.sf);
+      const compSf = comp.getSourceFile();
+      const compCtx = { ...ctx, sf: compSf, __expanding: new Set(expanding).add(comp) };
+      const renderM = comp.members.find((m) => ts.isMethodDeclaration(m) && m.name.getText(compSf) === 'render');
       if (!renderM) throw new CompileError(`@Component <${tag}/> precisa de um render()`, node, ctx.sf);
-      return parseJsx(findRenderReturn(renderM, ctx), ctx, attrs); // attrs do uso viram o escopo de props
+      const kids = jsxKids(node);
+      const childScope = { ...attrs, __children: { nodes: kids, scope, ctx } };
+      return parseJsx(findRenderReturn(renderM, compCtx), compCtx, childScope); // props + children do uso
     }
     return { kind: 'component', tag, attrs, node }; // built-in (OpenFormButton/SaveButton)
   }
@@ -2111,6 +2233,13 @@ const alignSelfOf = (a) => (typeof a.alignSelf === 'string' ? a.alignSelf : unde
 // Permite trocar o set inteiro de ícones sem tocar nos forms (só os PNGs em icons/).
 function iconPath(name) {
   return /[\\/.]/.test(name) ? name : `icons/${name}.png`;
+}
+// iconVariantPath: como iconPath, mas escolhe a VARIANTE de cor do PNG (icons/<name>-<cor>.png)
+// p/ casar com o fg do controle host — senão o glifo escuro (default onSurface) fica
+// ilegível sobre botao primary/danger. color=null usa o default. Caminho custom = verbatim.
+function iconVariantPath(name, color) {
+  if (/[\\/.]/.test(name)) return name;
+  return color ? `icons/${name}-${color}.png` : `icons/${name}.png`;
 }
 
 // controlLeaf: tag de controle -> folha de layout { w, h, grow, place }. place()
@@ -2393,18 +2522,28 @@ function sidebarItemLeaf(model, ctx, st) {
       if (click) cont.methods.Click = click;
       st.ir.controls.push(cont);
       const tx = icon ? 30 : 12;
+      // label/image são filhos do container -> shape (irmão do container) em This.Parent.Parent
       const lbl = { type: 'label', name: name + 't', parent: name, caption: label,
         left: tx, top: Math.round((H - 16) / 2), width: W - tx - 6, height: 16,
         properties: { BackStyle: 0, Alignment: 0, ForeColor: fg,
           FontName: foxString(THEME.fontBody || THEME.font || 'Segoe UI'), FontSize: 10 },
-        methods: Object.assign({ MouseEnter: enter }, click ? { Click: click } : {}) };
+        methods: Object.assign({ MouseEnter: deepenPath(enter) }, click ? { Click: click } : {}) };
       if (active) lbl.properties.FontBold = '.T.';
       st.ir.controls.push(lbl);
+      // ícone do item ativo recolore p/ primary (casa com o texto primary+bold); inativo = default.
       if (icon) st.ir.controls.push({ type: 'image', name: name + 'i', parent: name,
         left: 8, top: Math.round((H - 16) / 2), width: 16, height: 16,
-        properties: { Picture: foxString(iconPath(icon)), BackStyle: 0 } });
+        properties: { Picture: foxString(iconVariantPath(icon, active ? 'primary' : null)), BackStyle: 0 },
+        methods: Object.assign({ MouseEnter: deepenPath(enter) }, click ? { Click: click } : {}) });
     } };
 }
+
+// deepenPath: o hover recolore o SHAPE que é IRMÃO do container do botão/item (mesmo pai).
+// O handler do CONTÊINER usa `This.Parent.<shp>` (sobe 1 nível até o pai e acha o irmão).
+// Mas a LABEL/IMAGE são filhos do contêiner — pra elas, o shape está um nível ACIMA do
+// pai: `This.Parent.Parent.<shp>`. Sem isso, `cnt.shp` não existe -> erro de membro no
+// MouseEnter (afetava todos os apps). Reaproveita a mesma string subindo +1 nível.
+const deepenPath = (s) => s.replace(/\bThis\.Parent\./g, 'This.Parent.Parent.');
 
 // flatButtonLeaf: botão flat (Container colorido + Label centrado + ícone opcional),
 // com hover por shade() e Click -> ThisForm.<metodo>(). É um leaf posicionado pelo
@@ -2432,7 +2571,10 @@ function flatButtonLeaf(model, ctx, st) {
     const base = THEME[variant] || THEME.primary; bg = hexToRGB(base); fg = hexToRGB(THEME.onPrimary); hover = shade(base, 18);
   }
   const outline = border != null;
-  const icon = typeof a.icon === 'string' ? iconPath(a.icon) : null;
+  // cor do ícone CASA com o fg do texto: filled (primary/danger) -> branco; ghost -> primary;
+  // secondary -> default (onSurface). Senão o glifo escuro some no botao colorido.
+  const iconColor = variant === 'ghost' ? 'primary' : (variant === 'secondary' ? null : 'white');
+  const icon = typeof a.icon === 'string' ? iconVariantPath(a.icon, iconColor) : null;
   const click = typeof a.onClick === 'string' ? `ThisForm.${a.onClick}()` : '';
   // largura: botoes de toolbar sao compactos (snug ao conteudo; icon-only ~quadrado).
   const w = typeof a.width === 'number' ? a.width
@@ -2470,14 +2612,16 @@ function flatButtonLeaf(model, ctx, st) {
     if (click) cont.methods.Click = click;
     st.ir.controls.push(cont);
     const tx = icon ? 22 : 0, tw = icon ? W - 22 : W;
+    // label/image são filhos do container -> o shape (irmão do container) está em This.Parent.Parent
     const lbl = { type: 'label', name: name + 't', parent: name, caption,
       left: tx, top: Math.round((H - 16) / 2), width: tw, height: 16,
       properties: { BackStyle: 0, Alignment: 2, ForeColor: fg, FontName: foxString(THEME.fontBody || THEME.font || 'Segoe UI'), FontSize: 9 },
-      methods: Object.assign({ MouseEnter: restEnter }, click ? { Click: click } : {}) };
+      methods: Object.assign({ MouseEnter: deepenPath(restEnter) }, click ? { Click: click } : {}) };
     st.ir.controls.push(lbl);
     if (icon) st.ir.controls.push({ type: 'image', name: name + 'i', parent: name,
       left: 8, top: Math.round((H - 16) / 2), width: 16, height: 16,
-      properties: { Picture: foxString(icon), BackStyle: 0, Stretch: 1 } });
+      properties: { Picture: foxString(icon), BackStyle: 0, Stretch: 1 },
+      methods: Object.assign({ MouseEnter: deepenPath(restEnter) }, click ? { Click: click } : {}) });
   } };
 }
 
@@ -2673,6 +2817,22 @@ const BASE_EVENTS = new Set([
   'unload', 'error', 'refresh', 'show', 'hide', 'timer', 'mousedown', 'mouseup', 'mousemove',
 ]);
 
+// Eventos do VFP que são DISPARADOS COM PARÂMETROS. O VFP chama, p.ex., MouseEnter passando
+// (nButton, nShift, nXCoord, nYCoord); se o corpo do método não tiver um LPARAMETERS, o VFP
+// lança "No PARAMETER statement is found" (erro 1229) no 1º hover/clique. Por isso injetamos
+// o LPARAMETERS no início desses métodos gerados (hover dos botões flat/sidebar/toolbar etc.).
+const EVENT_PARAMS = {
+  mouseenter: 'nButton, nShift, nXCoord, nYCoord',
+  mouseleave: 'nButton, nShift, nXCoord, nYCoord',
+  mousemove: 'nButton, nShift, nXCoord, nYCoord',
+  mousedown: 'nButton, nShift, nXCoord, nYCoord',
+  mouseup: 'nButton, nShift, nXCoord, nYCoord',
+  mousewheel: 'nDirection, nShift, nXCoord, nYCoord',
+  keypress: 'nKeyCode, nShiftAltCtrl',
+  dragdrop: 'oSource, nXCoord, nYCoord',
+  dragover: 'oSource, nXCoord, nYCoord, nState',
+};
+
 // finalizeFormIR: pós-processa a IR de um form antes de gerar o SCX —
 //  (1) Click de controle com nome de método ("salvar") vira ThisForm.salvar();
 //  (2) registra um membro custom (RESERVED3) para cada método que não é evento base.
@@ -2700,8 +2860,12 @@ function finalizeFormIR(ir, tsNames) {
   for (const c of ir.controls || []) {
     if (!c.methods) continue;
     for (const k of Object.keys(c.methods)) {
-      const v = c.methods[k];
-      if (typeof v === 'string' && /^[A-Za-z_]\w*$/.test(v.trim())) c.methods[k] = `ThisForm.${v.trim()}()`;
+      let v = c.methods[k];
+      if (typeof v === 'string' && /^[A-Za-z_]\w*$/.test(v.trim())) v = c.methods[k] = `ThisForm.${v.trim()}()`;
+      // injeta LPARAMETERS em eventos disparados com parâmetros (MouseEnter/Leave etc.),
+      // senão o VFP erra "No PARAMETER statement is found" no 1º hover. Pula se já houver.
+      const ep = typeof v === 'string' ? EVENT_PARAMS[k.toLowerCase()] : null;
+      if (ep && !/^\s*L?PARAMETERS\b/i.test(v)) c.methods[k] = `LPARAMETERS ${ep}\n${v}`;
     }
   }
   for (const name of Object.keys(ir.methods)) {
