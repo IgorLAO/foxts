@@ -2,7 +2,7 @@
 * parametro p/ rodar UM form por processo do vfp9 (evita travas de sequencia entre forms).
 * Uso: vfp9 -C cap.fpw, com COMMAND=DO capture.prg WITH "dist\X.scx","dist\X.png".
 LOCAL lcDir
-lcDir = "C:\projectos\testesvf\foxts\showcase\apostas-app\"
+lcDir = ADDBS(JUSTPATH(SYS(16,1)))   && diretório do próprio .prg em runtime
 SET DEFAULT TO (lcDir)
 SET STATUS BAR OFF
 

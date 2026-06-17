@@ -1,0 +1,48 @@
+{
+  "caption": "Clientes",
+  "controls": [
+    {
+      "height": 240,
+      "left": 10,
+      "name": "grd1",
+      "properties": {
+        "BackColor": 16777215,
+        "BackStyle": 1,
+        "Column1.ControlSource": "\"curClientes.nome\"",
+        "Column1.DynamicBackColor": "\"IIF(MOD(RECNO(),2)=0, 16381425, 16777215)\"",
+        "Column1.DynamicForeColor": "\"2758415\"",
+        "Column1.Width": 220,
+        "Column2.ControlSource": "\"curClientes.uf\"",
+        "Column2.DynamicBackColor": "\"IIF(MOD(RECNO(),2)=0, 16381425, 16777215)\"",
+        "Column2.DynamicForeColor": "\"2758415\"",
+        "Column2.Width": 50,
+        "Column3.ControlSource": "\"curClientes.limite\"",
+        "Column3.DynamicBackColor": "\"IIF(MOD(RECNO(),2)=0, 16381425, 16777215)\"",
+        "Column3.DynamicForeColor": "\"2758415\"",
+        "Column3.Width": 152,
+        "ColumnCount": 3,
+        "DeleteMark": ".F.",
+        "GridLines": 1,
+        "RecordMark": ".F.",
+        "RecordSource": "\"curClientes\"",
+        "RecordSourceType": 1,
+        "ScrollBars": 2,
+        "Themes": ".F."
+      },
+      "top": 10,
+      "type": "grid",
+      "width": 440
+    }
+  ],
+  "height": 320,
+  "members": [],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320\n\tThisForm.grd1.BackColor = 16777215\n\tThisForm.grd1.Column1.Header1.Caption = \"Nome\"\n\tThisForm.grd1.Column1.Header1.FontBold = .T.\n\tThisForm.grd1.Column1.Header1.BackColor = 16119285\n\tThisForm.grd1.Column1.Header1.ForeColor = 2758415\n\tThisForm.grd1.Column2.Header1.Caption = \"UF\"\n\tThisForm.grd1.Column2.Header1.FontBold = .T.\n\tThisForm.grd1.Column2.Header1.BackColor = 16119285\n\tThisForm.grd1.Column2.Header1.ForeColor = 2758415\n\tThisForm.grd1.Column3.Header1.Caption = \"Limite\"\n\tThisForm.grd1.Column3.Header1.FontBold = .T.\n\tThisForm.grd1.Column3.Header1.BackColor = 16119285\n\tThisForm.grd1.Column3.Header1.ForeColor = 2758415\n\tGO TOP IN curClientes",
+    "Load": "\tCREATE CURSOR curClientes (nome C(30), uf C(2), limite N(10,2))\n\tINSERT INTO curClientes (nome, uf, limite) VALUES (\"Joao Silva\", \"SP\", 1500)\n\tINSERT INTO curClientes (nome, uf, limite) VALUES (\"Maria Souza\", \"RJ\", 3200)\n\tINSERT INTO curClientes (nome, uf, limite) VALUES (\"Pedro Lima\", \"MG\", 800)"
+  },
+  "name": "ClientesGridForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 480
+}

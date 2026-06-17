@@ -28,6 +28,14 @@ export class Cursor<T> {
   count(): number { return this.rows.length; }
   field<K extends keyof T>(col: K): T[K] { return this.rows[this.pos][col]; }
   use(_keep: boolean): void { /* USE IN — no-op no oráculo */ }
+  // update/increment (keyed) -> SQL UPDATE no VFP. Atualizam os registros que casam
+  // whereCol=whereValue SEM precisar posicionar o ponteiro (descoberto portando a catraca).
+  update<K extends keyof T>(col: K, value: T[K], whereCol: keyof T, whereValue: T[keyof T]): void {
+    for (const r of this.rows) if ((r as any)[whereCol] === whereValue) (r as any)[col] = value;
+  }
+  increment<K extends keyof T>(col: K, by: number, whereCol: keyof T, whereValue: T[keyof T]): void {
+    for (const r of this.rows) if ((r as any)[whereCol] === whereValue) (r as any)[col] = ((r as any)[col] as any) + by;
+  }
 }
 export function createCursor<T>(name: string): Cursor<T> { return new Cursor<T>(name); }
 

@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
 const t = require('../transpile');
+const layout = require('../layout'); // mesmo motor do foxc: precarregar Yoga p/ align/justify (no flex sao no-op)
 
 const args = process.argv.slice(2).filter((a) => a !== '--dark');
 const dark = process.argv.includes('--dark');
@@ -18,8 +19,7 @@ if (fs.existsSync('vfp.theme.json')) {
   t.setTheme(th);
 }
 
-const ir = t.transpileForm(entry);
-const W = ir.width || 480, H = ir.height || 360;
+let ir, W, H; // preenchidos no IIFE async (apos precarregar o Yoga)
 
 // ---- helpers ----------------------------------------------------------------
 const rgb = (v) => { // cor VFP -> css. Aceita NÚMERO BGR (0x00BBGGRR, como themeColor/
@@ -33,8 +33,7 @@ const unq = (s) => String(s == null ? '' : s).replace(/^"|"$|^\[|\]$/g, '');
 const num = (v) => (typeof v === 'number' ? v : parseFloat(v)) || 0;
 
 // mapa nome->controle e coords absolutas (filhos guardam coord relativa ao pai)
-const byName = {};
-for (const c of ir.controls) byName[(c.name || '').toLowerCase()] = c;
+const byName = {}; // preenchido no IIFE async
 function abs(c) {
   let x = c.left || 0, y = c.top || 0, p = c.parent && byName[c.parent.toLowerCase()];
   while (p) { x += p.left || 0; y += p.top || 0; p = p.parent && byName[p.parent.toLowerCase()]; }
@@ -59,6 +58,10 @@ function gridHeaders() {
 
 // ---- render -----------------------------------------------------------------
 (async () => {
+  if (process.env.FOXTS_LAYOUT !== 'flex' && await layout.loadYogaEngine()) layout.setEngine('yoga'); // fiel ao foxc
+  ir = t.transpileForm(entry);
+  W = ir.width || 480; H = ir.height || 360;
+  for (const c of ir.controls) byName[(c.name || '').toLowerCase()] = c;
   const cv = createCanvas(W, H), c = cv.getContext('2d');
   // fundo do form
   c.fillStyle = rgb(ir.properties && ir.properties.BackColor) || '#f8fafc';
@@ -67,6 +70,7 @@ function gridHeaders() {
 
   for (const ctrl of ir.controls) {
     const p = ctrl.properties || {};
+    if (p.Visible === '.F.' || p.Visible === false) continue; // controle oculto nao pinta (fiel ao VFP)
     const { x, y } = abs(ctrl);
     const w = ctrl.width || 0, h = ctrl.height || 0;
     const back = rgb(p.BackColor);

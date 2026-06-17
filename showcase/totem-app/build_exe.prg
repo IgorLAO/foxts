@@ -2,7 +2,7 @@
 * com main.prg (entrada) + Totem.scx (a tela, com tema baked no SCX) e roda Project.Build
 * com nBuildAction=3 (BUILDEXE). Uso (foxcli): foxcli run build_exe.prg --timeout 300
 LOCAL lcDir, lcExe, loP
-lcDir = "C:\projectos\testesvf\foxts\showcase\totem-app\"
+lcDir = ADDBS(JUSTPATH(SYS(16,1)))   && diretório do próprio .prg em runtime
 lcExe = lcDir + "dist\FoxFood.exe"
 SET DEFAULT TO (lcDir)
 SET SAFETY OFF

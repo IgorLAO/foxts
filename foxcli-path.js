@@ -5,14 +5,14 @@
 //   3. foxcli BUNDLADO no repo: ./foxcli/foxcli.exe (fonte Go vendorizada + build
 //      via `npm run foxcli:build`). Self-contained — a fonte de verdade do projeto.
 //   4. candidates relativos ao módulo (layouts antigos: ../foxcli/, ../../foxcli/)
-//   5. fallback hardcoded  C:\projectos\testesvf\foxcli\foxcli.exe
+//   5. fallback "foxcli.exe" — confia no PATH (sem caminho pessoal embutido)
 //
 // Exporta a string do caminho absoluto resolvido.
 
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT = 'C:\\projectos\\testesvf\\foxcli\\foxcli.exe';
+const DEFAULT = 'foxcli.exe'; // último recurso: confia no PATH (sem caminho pessoal)
 
 function resolveFoxcliPath() {
   // 1. Override explícito

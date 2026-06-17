@@ -1,0 +1,91 @@
+{
+  "caption": "Anim",
+  "controls": [
+    {
+      "caption": "Carregando",
+      "height": 28,
+      "left": 18,
+      "name": "lbl1",
+      "properties": {
+        "Alignment": 2,
+        "BackStyle": 0,
+        "FontBold": ".T.",
+        "FontName": "\"Segoe UI\"",
+        "FontSize": 18,
+        "ForeColor": 15788258
+      },
+      "top": 18,
+      "type": "label",
+      "width": 320
+    },
+    {
+      "height": 16,
+      "left": 18,
+      "name": "track",
+      "properties": {
+        "BackColor": 3877150,
+        "BackStyle": 1,
+        "BorderColor": 5587251,
+        "BorderWidth": 1,
+        "Curvature": 12,
+        "FillColor": 3877150,
+        "FillStyle": 0
+      },
+      "top": 58,
+      "type": "shape",
+      "width": 320
+    },
+    {
+      "height": 16,
+      "left": 18,
+      "name": "bar",
+      "properties": {
+        "BackColor": 15547004,
+        "BackStyle": 1,
+        "Curvature": 12,
+        "FillColor": 15547004,
+        "FillStyle": 0
+      },
+      "top": 86,
+      "type": "shape",
+      "width": 6
+    },
+    {
+      "height": 0,
+      "left": 18,
+      "methods": {
+        "Timer": "ThisForm.tick()"
+      },
+      "name": "tmr",
+      "properties": {
+        "Interval": 50
+      },
+      "top": 114,
+      "type": "timer",
+      "width": 0
+    }
+  ],
+  "height": 220,
+  "members": [
+    {
+      "default": "0",
+      "desc": "(estado) phase",
+      "kind": "property",
+      "name": "phase"
+    },
+    {
+      "desc": "(TypeScript) tick",
+      "kind": "method",
+      "name": "tick"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.lbl1.ForeColor = 15788258\n\tThisForm.track.BackColor = 3877150\n\tThisForm.track.BorderColor = 5587251\n\tThisForm.track.FillColor = 3877150\n\tThisForm.bar.BackColor = 15547004\n\tThisForm.bar.FillColor = 15547004",
+    "tick": "\tThis.phase = This.phase + 1\n\tThis.bar.width = This.bar.width + 10\n\tIF This.bar.width > 300\n\t\tThis.bar.width = 6\n\tENDIF"
+  },
+  "name": "AnimForm",
+  "properties": {
+    "BackColor": "RGB(15, 23, 42)"
+  },
+  "width": 380
+}

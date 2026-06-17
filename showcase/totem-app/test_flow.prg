@@ -4,7 +4,7 @@
 * pagamento -> aprovado, e limpar. Uso (foxcli): foxcli run test_flow.prg --timeout 120
 LPARAMETERS tcOut
 LOCAL lcDir
-lcDir = "C:\projectos\testesvf\foxts\showcase\totem-app\"
+lcDir = ADDBS(JUSTPATH(SYS(16,1)))   && diretório do próprio .prg em runtime
 IF EMPTY(m.tcOut)
   tcOut = lcDir + "dist\flow.test.txt"
 ENDIF

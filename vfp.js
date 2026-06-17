@@ -145,14 +145,21 @@ const tplPkg = (name) => JSON.stringify({
   name, version: '0.1.0', private: true,
   scripts: {
     build: 'vfp build',
+    start: 'vfp dev', // preview React no navegador (npm start)
+    dev: 'vfp dev',   // alias (memoria muscular React)
     watch: 'vfp watch',
-    dev: 'vfp watch', // alias (memoria muscular React)
     run: 'vfp run',
     clean: 'vfp clean',
     'create:form': 'vfp generate form',
     'create:class': 'vfp generate class',
   },
-  devDependencies: { foxts: `^${FOXTS_VERSION}` },
+  devDependencies: {
+    foxts: `^${FOXTS_VERSION}`,
+    react: '^19.2.7',
+    'react-dom': '^19.2.7',
+    vite: '^8.0.16',
+    '@vitejs/plugin-react': '^6.0.2',
+  },
 }, null, 2) + '\n';
 
 // ---- comandos --------------------------------------------------------------
@@ -506,6 +513,42 @@ function cmdWatch(root) {
   });
 }
 
+// ---- dev (preview React no navegador) --------------------------------------
+// Sobe o Vite dev server (preview/vite.config.mjs) apontado p/ o projeto via env.
+// Renderiza os forms TSX com a 2a impl de @vfp/core (DOM real + HMR). NAO gera VFP.
+function findViteBin(root) {
+  const bin = process.platform === 'win32' ? 'vite.cmd' : 'vite';
+  // 1) vite local do projeto; 2) vite do proprio pacote foxts (shipa como devDep)
+  const candidates = [
+    path.join(root, 'node_modules', '.bin', bin),
+    path.join(__dirname, 'node_modules', '.bin', bin),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+function cmdDev(root) {
+  const cfg = loadConfig(root);
+  const vite = findViteBin(root);
+  if (!vite) {
+    die('vite nao encontrado. Instale as dependencias de preview:\n' +
+        '  npm i -D vite react react-dom @vitejs/plugin-react');
+  }
+  const config = path.join(__dirname, 'preview', 'vite.config.mjs');
+  const themeFile = path.join(root, 'vfp.theme.json');
+  const env = {
+    ...process.env,
+    FOXTS_PROJECT: root,
+    FOXTS_SRC: cfg.srcDir,
+  };
+  if (fs.existsSync(themeFile)) env.FOXTS_THEME = themeFile;
+  if (process.env.FOXTS_PORT) env.FOXTS_PORT = process.env.FOXTS_PORT;
+  log(`preview (React) em ${path.relative(process.cwd(), root || '.') || '.'} — Ctrl+C para sair`);
+  const { spawnSync } = require('child_process');
+  const r = spawnSync(vite, ['--config', config], { stdio: 'inherit', env, shell: process.platform === 'win32' });
+  if (r.error) die(r.error.message);
+  if (typeof r.status === 'number' && r.status !== 0) process.exit(r.status);
+}
+
 // ---- dispatch --------------------------------------------------------------
 const USAGE = `vfp — CLI de projeto TypeScript -> Visual FoxPro 9
 
@@ -514,6 +557,7 @@ const USAGE = `vfp — CLI de projeto TypeScript -> Visual FoxPro 9
   vfp generate component <Nome>  gera um @Component reutilizável
   vfp generate service <Nome>    gera um @Injectable -> PRG
   vfp build                      UI Compiler (forms->SCX) + Logic Compiler (services->PRG)
+  vfp dev                        ambiente de preview no navegador (React; sem gerar VFP)
   vfp watch                      recompila ao salvar
   vfp run                        build + executa app.prg (linka serviços + main()/entry)
   vfp pack                       build + monta .pjx e EXE (via foxcli)
@@ -527,6 +571,7 @@ function main() {
     case 'new': return cmdNew(a);
     case 'generate': case 'g': return cmdGenerate(a, b, root);
     case 'build': return cmdBuild(root);
+    case 'dev': return cmdDev(root);
     case 'watch': return cmdWatch(root);
     case 'run': return cmdRun(root);
     case 'pack': return cmdPack(root);

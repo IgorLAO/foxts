@@ -1,0 +1,100 @@
+{
+  "caption": "Cadastro",
+  "controls": [
+    {
+      "caption": "Nome",
+      "height": 17,
+      "left": 10,
+      "name": "lbl1",
+      "top": 10,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtNome",
+      "properties": {
+        "ControlSource": "\"ThisForm.nome\""
+      },
+      "top": 35,
+      "type": "textbox",
+      "width": 200
+    },
+    {
+      "caption": "UF",
+      "height": 17,
+      "left": 10,
+      "name": "lbl2",
+      "top": 66,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtUf",
+      "properties": {
+        "ControlSource": "\"ThisForm.uf\""
+      },
+      "top": 91,
+      "type": "textbox",
+      "width": 60
+    },
+    {
+      "caption": "Idade",
+      "height": 17,
+      "left": 10,
+      "name": "lbl3",
+      "top": 122,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtIdade",
+      "properties": {
+        "ControlSource": "\"ThisForm.idade\""
+      },
+      "top": 147,
+      "type": "textbox",
+      "width": 60
+    }
+  ],
+  "height": 240,
+  "members": [
+    {
+      "default": "\"\"",
+      "desc": "(bind) nome",
+      "kind": "property",
+      "name": "nome"
+    },
+    {
+      "default": "\"\"",
+      "desc": "(bind) uf",
+      "kind": "property",
+      "name": "uf"
+    },
+    {
+      "default": "0",
+      "desc": "(bind) idade",
+      "kind": "property",
+      "name": "idade"
+    },
+    {
+      "desc": "(TypeScript) Validar",
+      "kind": "method",
+      "name": "Validar"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320",
+    "Validar": "\tIF EMPTY(ThisForm.nome)\n\t\tRETURN \"nome: obrigatorio\"\n\tENDIF\n\tIF LEN(ALLTRIM(ThisForm.nome)) < 3\n\t\tRETURN \"nome: minimo 3 caracteres\"\n\tENDIF\n\tIF LEN(ALLTRIM(ThisForm.nome)) > 10\n\t\tRETURN \"nome: maximo 10 caracteres\"\n\tENDIF\n\tIF LEN(ALLTRIM(ThisForm.uf)) <> 2\n\t\tRETURN \"uf: deve ter 2 caracteres\"\n\tENDIF\n\tIF ThisForm.idade < 18\n\t\tRETURN \"idade: minimo 18\"\n\tENDIF\n\tIF ThisForm.idade > 120\n\t\tRETURN \"idade: maximo 120\"\n\tENDIF\n\tRETURN \"\""
+  },
+  "name": "CadClienteForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 360
+}

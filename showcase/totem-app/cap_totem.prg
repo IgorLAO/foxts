@@ -1,7 +1,7 @@
 * cap_totem.prg — dirige o fluxo do totem e captura as 5 telas (pixels REAIS via BitBlt
 * do desktop + GDI+ -> dist\NN-nome.png). Uso (foxcli): foxcli run cap_totem.prg --timeout 300
 LOCAL lcDir
-lcDir = "C:\projectos\testesvf\foxts\showcase\totem-app\"
+lcDir = ADDBS(JUSTPATH(SYS(16,1)))   && diretório do próprio .prg em runtime
 SET DEFAULT TO (lcDir)
 
 DECLARE INTEGER GetWindowRect IN user32 INTEGER hWnd, STRING @lpRect

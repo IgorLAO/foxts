@@ -42,6 +42,13 @@
     "globals.d.ts",
     "fox.ts",
     "db.ts",
+    "compiler",
+    "preview/host",
+    "preview/runtime",
+    "preview/jsx.ts",
+    "preview/vite.config.mjs",
+    "preview/CONTRACT.md",
+    "foxcli/foxcli.exe",
     "README.md",
     "LICENSE"
   ],
@@ -49,7 +56,10 @@
     "node": ">=18"
   },
   "scripts": {
+    "prepack": "node -e \"require('./transpile.js'); console.log('prepack: transpile requires OK')\"",
     "build": "node build.js",
+    "start": "cd showcase/catraca-app && node ../../vfp.js dev",
+    "preview:png": "node showcase/catraca-app/watch.js",
     "build:calc": "node cli.js examples/calc.ts -o dist/calc.prg",
     "foxcli": "node foxcli.js",
     "foxcli:build": "go build -C foxcli -o foxcli.exe .",
@@ -69,5 +79,15 @@
     "@resvg/resvg-js": "^2.6.2",
     "typescript": "^5.6.0",
     "yoga-layout": "^3.2.1"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "puppeteer-core": "^25.1.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vite": "^8.0.16"
   }
 }

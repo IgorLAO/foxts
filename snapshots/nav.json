@@ -1,0 +1,44 @@
+{
+  "caption": "Cliente",
+  "controls": [
+    {
+      "caption": "Pedidos",
+      "left": 10,
+      "methods": {
+        "Click": "ThisForm.abrirPedido()"
+      },
+      "name": "cmdAbrirPedido",
+      "top": 10,
+      "type": "commandbutton"
+    }
+  ],
+  "height": 300,
+  "members": [
+    {
+      "desc": "(TypeScript) abrirPedido",
+      "kind": "method",
+      "name": "abrirPedido"
+    },
+    {
+      "desc": "(TypeScript) abrirModal",
+      "kind": "method",
+      "name": "abrirModal"
+    },
+    {
+      "desc": "(TypeScript) abrirRef",
+      "kind": "method",
+      "name": "abrirRef"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320",
+    "abrirModal": "\tLOCAL ok\n\tDO FORM PedidoForm TO ok",
+    "abrirPedido": "\tDO FORM PedidoForm WITH 123",
+    "abrirRef": "\tDO FORM PedidoForm NAME This.pedidoForm LINKED"
+  },
+  "name": "ClienteForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 400
+}

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FoxTS Preview</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      html, body, #root { height: 100%; margin: 0; }
+      body {
+        background: var(--bg, #f8fafc);
+        font-family: var(--font-body, "Segoe UI"), system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- absoluto: o index.html é servido na URL "/" (com ?form=...), então "./main.tsx"
+         resolveria p/ /main.tsx (404). /host/main.tsx resolve sempre. -->
+    <script type="module" src="/host/main.tsx"></script>
+  </body>
+</html>

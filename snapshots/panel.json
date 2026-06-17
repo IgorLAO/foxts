@@ -1,0 +1,131 @@
+{
+  "caption": "Cadastro",
+  "controls": [
+    {
+      "height": 95,
+      "left": 10,
+      "name": "cnt1",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 1
+      },
+      "top": 10,
+      "type": "container",
+      "width": 280
+    },
+    {
+      "caption": "Dados pessoais",
+      "height": 17,
+      "left": 10,
+      "name": "lbl1",
+      "parent": "cnt1",
+      "top": 10,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtNome",
+      "parent": "cnt1",
+      "properties": {
+        "ControlSource": "\"ThisForm.nome\""
+      },
+      "top": 33,
+      "type": "textbox",
+      "width": 260
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtEmail",
+      "parent": "cnt1",
+      "properties": {
+        "ControlSource": "\"ThisForm.email\""
+      },
+      "top": 62,
+      "type": "textbox",
+      "width": 260
+    },
+    {
+      "height": 43,
+      "left": 10,
+      "name": "cnt2",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 1
+      },
+      "top": 117,
+      "type": "container",
+      "width": 238
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtCidade",
+      "parent": "cnt2",
+      "properties": {
+        "ControlSource": "\"ThisForm.cidade\""
+      },
+      "top": 10,
+      "type": "textbox",
+      "width": 160
+    },
+    {
+      "height": 23,
+      "left": 178,
+      "name": "txtUf",
+      "parent": "cnt2",
+      "properties": {
+        "ControlSource": "\"ThisForm.uf\""
+      },
+      "top": 10,
+      "type": "textbox",
+      "width": 50
+    },
+    {
+      "caption": "Gravar",
+      "height": 27,
+      "left": 20,
+      "name": "cmdSalvar",
+      "top": 182,
+      "type": "commandbutton",
+      "width": 100
+    }
+  ],
+  "height": 360,
+  "members": [
+    {
+      "default": "\"\"",
+      "desc": "(bind) nome",
+      "kind": "property",
+      "name": "nome"
+    },
+    {
+      "default": "\"\"",
+      "desc": "(bind) email",
+      "kind": "property",
+      "name": "email"
+    },
+    {
+      "default": "\"\"",
+      "desc": "(bind) cidade",
+      "kind": "property",
+      "name": "cidade"
+    },
+    {
+      "default": "\"\"",
+      "desc": "(bind) uf",
+      "kind": "property",
+      "name": "uf"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320"
+  },
+  "name": "CadForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 480
+}

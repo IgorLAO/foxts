@@ -1,0 +1,44 @@
+{
+  "caption": "Cliente",
+  "controls": [
+    {
+      "caption": "Cadastro de cliente",
+      "height": 17,
+      "left": 10,
+      "name": "lbl1",
+      "top": 10,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "caption": "Pedidos",
+      "height": 27,
+      "left": 10,
+      "methods": {
+        "Click": "DO FORM PedidoForm"
+      },
+      "name": "cmdPedido",
+      "top": 37,
+      "type": "commandbutton",
+      "width": 100
+    }
+  ],
+  "height": 300,
+  "members": [
+    {
+      "desc": "(TypeScript) abrirPedido",
+      "kind": "method",
+      "name": "abrirPedido"
+    }
+  ],
+  "methods": {
+    "Init": "\tLPARAMETERS clienteId\n\tThisForm.BackColor = 16579320\n\tThis.caption = \"Cliente \" + TRANSFORM(clienteId)",
+    "abrirPedido": "\tDO FORM PedidoForm WITH 10"
+  },
+  "name": "ClienteForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "route": "cliente",
+  "width": 420
+}

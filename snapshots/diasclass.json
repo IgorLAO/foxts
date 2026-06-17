@@ -1,0 +1,105 @@
+{
+  "caption": "Dias da semana (classe TypeScript tipada)",
+  "controls": [
+    {
+      "caption": "Data inicial",
+      "left": 16,
+      "name": "lblIni",
+      "properties": {
+        "AutoSize": ".T."
+      },
+      "top": 12,
+      "type": "label"
+    },
+    {
+      "height": 24,
+      "left": 16,
+      "name": "txtIni",
+      "properties": {
+        "Value": "{}"
+      },
+      "top": 32,
+      "type": "textbox",
+      "width": 110
+    },
+    {
+      "caption": "Data final",
+      "left": 150,
+      "name": "lblFim",
+      "properties": {
+        "AutoSize": ".T."
+      },
+      "top": 12,
+      "type": "label"
+    },
+    {
+      "height": 24,
+      "left": 150,
+      "name": "txtFim",
+      "properties": {
+        "Value": "{}"
+      },
+      "top": 32,
+      "type": "textbox",
+      "width": 110
+    },
+    {
+      "caption": "Gerar",
+      "height": 27,
+      "left": 284,
+      "methods": {
+        "Click": "ThisForm.Gerar()"
+      },
+      "name": "cmdGerar",
+      "top": 30,
+      "type": "commandbutton",
+      "width": 80
+    },
+    {
+      "height": 340,
+      "left": 16,
+      "name": "grdDias",
+      "properties": {
+        "ColumnCount": -1,
+        "DeleteMark": ".F.",
+        "ReadOnly": ".T."
+      },
+      "top": 70,
+      "type": "grid",
+      "width": 438
+    }
+  ],
+  "height": 430,
+  "members": [
+    {
+      "desc": "(TypeScript) Gerar",
+      "kind": "method",
+      "name": "Gerar"
+    },
+    {
+      "desc": "(TypeScript) NomeDia",
+      "kind": "method",
+      "name": "NomeDia"
+    },
+    {
+      "desc": "(TypeScript) ehDiaUtil",
+      "kind": "method",
+      "name": "ehDiaUtil"
+    }
+  ],
+  "methods": {
+    "Destroy": "\tIF USED(\"curdias\")\n\t\tUSE IN (\"curdias\")\n\tENDIF\n\tCLEAR EVENTS",
+    "Gerar": "\tLOCAL d, fim, dow\n\tIF USED(\"curdias\")\n\t\tUSE IN (\"curdias\")\n\tENDIF\n\tCREATE CURSOR curdias (dia D, semana C(13), util L)\n\td = This.txtIni.value\n\tfim = This.txtFim.value\n\tDO WHILE d <= fim\n\t\tdow = DOW(d, 1)\n\t\tINSERT INTO curdias (dia, semana, util) VALUES (d, This.NomeDia(dow), This.ehDiaUtil(dow))\n\t\td = (d + 1)\n\tENDDO\n\tThis.grdDias.recordSource = \"curdias\"",
+    "Init": "\tSET DATE DMY\n\tSET CENTURY ON\n\tThis.txtIni.value = DATE()\n\tThis.txtFim.value = (DATE() + 13)\n\tThis.Gerar()",
+    "NomeDia": "\tLPARAMETERS tnDow\n\tIF tnDow = 1\n\t\tRETURN \"Domingo\"\n\tENDIF\n\tIF tnDow = 2\n\t\tRETURN \"Segunda-feira\"\n\tENDIF\n\tIF tnDow = 3\n\t\tRETURN \"Terca-feira\"\n\tENDIF\n\tIF tnDow = 4\n\t\tRETURN \"Quarta-feira\"\n\tENDIF\n\tIF tnDow = 5\n\t\tRETURN \"Quinta-feira\"\n\tENDIF\n\tIF tnDow = 6\n\t\tRETURN \"Sexta-feira\"\n\tENDIF\n\tRETURN \"Sabado\"",
+    "ehDiaUtil": "\tLPARAMETERS tnDow\n\tRETURN IIF(tnDow != 1 AND tnDow != 7, .T., .F.)"
+  },
+  "name": "frmDiasClass",
+  "properties": {
+    "AutoCenter": ".T.",
+    "BorderStyle": 2,
+    "MaxButton": ".F.",
+    "ShowWindow": 2
+  },
+  "width": 470
+}

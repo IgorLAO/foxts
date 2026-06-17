@@ -2,7 +2,7 @@
 * (PrintWindow PW_RENDERFULLCONTENT + GDI+ -> dist\NN-nome.png). SET DEFAULT no dir do
 * react-app p/ os Picture "icons\*.png" resolverem. Uso: foxcli run capture.prg --timeout 200
 LOCAL lcDir
-lcDir = "C:\projectos\testesvf\foxts\showcase\react-app\"
+lcDir = ADDBS(JUSTPATH(SYS(16,1)))   && diretório do próprio .prg em runtime
 SET DEFAULT TO (lcDir)
 
 DECLARE INTEGER GetWindowRect IN user32 INTEGER hWnd, STRING @lpRect

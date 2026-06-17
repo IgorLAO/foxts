@@ -1,0 +1,53 @@
+{
+  "caption": "Cadastro de Cliente",
+  "controls": [
+    {
+      "caption": "Nome:",
+      "left": 20,
+      "name": "lblNome",
+      "top": 20,
+      "type": "label"
+    },
+    {
+      "left": 90,
+      "name": "txtNome",
+      "top": 18,
+      "type": "textbox",
+      "width": 220
+    },
+    {
+      "caption": "Salvar",
+      "left": 90,
+      "methods": {
+        "Click": "ThisForm.salvar()"
+      },
+      "name": "cmdSalvar",
+      "top": 60,
+      "type": "commandbutton",
+      "width": 100
+    }
+  ],
+  "height": 400,
+  "members": [
+    {
+      "desc": "(TypeScript) salvar",
+      "kind": "method",
+      "name": "salvar"
+    },
+    {
+      "desc": "(TypeScript) maiusc",
+      "kind": "method",
+      "name": "maiusc"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320",
+    "maiusc": "\tLPARAMETERS s\n\tRETURN UPPER(s)",
+    "salvar": ""
+  },
+  "name": "FrmCliente",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 600
+}

@@ -1,0 +1,29 @@
+{
+  "font": "Segoe UI",
+  "fontTitle": "Segoe UI Semibold",
+  "fontBody": "Segoe UI",
+  "fontData": "Consolas",
+  "mode": "light",
+  "win11": true,
+  "flat": true,
+  "colors": {
+    "primary": "#2563eb",
+    "success": "#16a34a",
+    "danger": "#dc2626",
+    "warning": "#f59e0b",
+    "surface": "#ffffff",
+    "onSurface": "#0f172a",
+    "border": "#e2e8f0",
+    "altRow": "#eff6ff",
+    "muted": "#64748b",
+    "bg": "#eef2f7"
+  },
+  "dark": {
+    "surface": "#1e293b",
+    "onSurface": "#f1f5f9",
+    "border": "#334155",
+    "altRow": "#0f172a",
+    "muted": "#94a3b8",
+    "bg": "#0b1220"
+  }
+}

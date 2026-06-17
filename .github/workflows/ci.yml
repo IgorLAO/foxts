@@ -1,0 +1,74 @@
+# CI for FoxTS
+#
+# WHY THIS WORKFLOW IS SCOPED THE WAY IT IS (read before "fixing" it to run the
+# full test suite):
+#
+# FoxTS is a transpiler from typed TS to Visual FoxPro 9 (PRG/SCX). The
+# regression suite (`node test.js`) auto-discovers every verify*.js oracle and
+# builds examples/*.form.ts(x) via `node foxc.js build`. BOTH paths funnel
+# through the bundled Windows binary foxcli (foxcli/foxcli.exe), and *every*
+# foxcli operation used by the suite -- `form --spec` (SCX gen), `run`,
+# `compile`, `pack` -- opens a real Visual FoxPro session: foxcli/vfp.go does
+# NewSession() -> FindVFP(), which locates vfp9.exe via the Windows registry /
+# Program Files and spawns it headless. If vfp9.exe is absent FindVFP() returns
+# "vfp9.exe nao encontrado" and the command fails.
+#
+# GitHub-hosted runners do NOT have Visual FoxPro 9 installed (it is a
+# proprietary, EOL product with no headless installer). Therefore running
+# `node test.js` on any hosted runner would FAIL 100% of its checks. It only
+# passes on a machine with VFP9 installed (e.g. the maintainer's box). To keep
+# CI a reliable green signal rather than a permanent red X, we DO NOT run
+# `node test.js` here. Instead the test job does a VFP-less smoke check of the
+# toolchain (the foxcli binary launches; types compile on Windows too).
+#
+# The real value gate is the `typecheck` job: `tsc --noEmit -p .` over the
+# whole .ts surface (decorators.ts, fox.ts, db.ts, examples/**, showcase/**),
+# which is pure TypeScript and needs neither foxcli nor VFP.
+#
+# To run the full VFP-backed suite, use a self-hosted runner with VFP9
+# installed (or set FOXCLI_VFP9) and add a job that calls `node test.js`.
+
+name: CI
+
+on:
+  push:
+    branches: [master, ui-kit]
+  pull_request:
+    branches: [master, ui-kit]
+
+jobs:
+  typecheck:
+    name: typecheck (tsc --noEmit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+
+  test:
+    name: toolchain smoke (Windows, no VFP)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: npm ci
+      # Type-check on Windows too (same green gate as the ubuntu job, different OS).
+      - run: npx tsc --noEmit -p .
+      # foxcli is a Go binary built from the vendored source in foxcli/ (it is NOT
+      # committed; see .gitignore). Build it, then smoke-check it launches. `version`
+      # needs no VFP; `node test.js` is intentionally skipped (see header: it would
+      # spawn vfp9.exe, which hosted runners lack).
+      - name: build foxcli (Go)
+        run: npm run foxcli:build
+      - name: foxcli binary launches
+        run: ./foxcli/foxcli.exe version

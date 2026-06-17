@@ -1,0 +1,88 @@
+{
+  "caption": "Toolbar",
+  "controls": [
+    {
+      "caption": "Pedido",
+      "height": 17,
+      "left": 20,
+      "name": "lbl1",
+      "top": 25,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "caption": "Novo",
+      "height": 27,
+      "left": 210,
+      "name": "cmd1",
+      "top": 20,
+      "type": "commandbutton",
+      "width": 100
+    },
+    {
+      "caption": "Excluir",
+      "height": 27,
+      "left": 400,
+      "name": "cmd2",
+      "properties": {
+        "BackColor": 2500316,
+        "BackStyle": 1,
+        "ForeColor": 16777215
+      },
+      "top": 20,
+      "type": "commandbutton",
+      "width": 100
+    },
+    {
+      "caption": "Busca",
+      "height": 17,
+      "left": 20,
+      "name": "lbl2",
+      "top": 79,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "height": 23,
+      "left": 128,
+      "name": "txtFiltro",
+      "properties": {
+        "ControlSource": "\"ThisForm.filtro\""
+      },
+      "top": 79,
+      "type": "textbox",
+      "width": 264
+    },
+    {
+      "caption": "Ir",
+      "height": 27,
+      "left": 400,
+      "name": "cmd3",
+      "properties": {
+        "BackColor": 15426341,
+        "BackStyle": 1,
+        "ForeColor": 16777215
+      },
+      "top": 79,
+      "type": "commandbutton",
+      "width": 100
+    }
+  ],
+  "height": 220,
+  "members": [
+    {
+      "default": "\"\"",
+      "desc": "(bind) filtro",
+      "kind": "property",
+      "name": "filtro"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320\n\tThisForm.cmd2.BackColor = 2500316\n\tThisForm.cmd2.ForeColor = 16777215\n\tThisForm.cmd3.BackColor = 15426341\n\tThisForm.cmd3.ForeColor = 16777215"
+  },
+  "name": "ToolbarForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 540
+}

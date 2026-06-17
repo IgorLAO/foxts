@@ -1,0 +1,72 @@
+{
+  "caption": "Wrap",
+  "controls": [
+    {
+      "caption": "A",
+      "height": 27,
+      "left": 20,
+      "methods": {
+        "Click": "DO FORM OutroForm"
+      },
+      "name": "cmdOutro",
+      "top": 20,
+      "type": "commandbutton",
+      "width": 80
+    },
+    {
+      "caption": "B",
+      "height": 27,
+      "left": 110,
+      "methods": {
+        "Click": "DO FORM OutroForm"
+      },
+      "name": "cmdOutro2",
+      "top": 20,
+      "type": "commandbutton",
+      "width": 80
+    },
+    {
+      "caption": "C",
+      "height": 27,
+      "left": 20,
+      "methods": {
+        "Click": "DO FORM OutroForm"
+      },
+      "name": "cmdOutro3",
+      "top": 57,
+      "type": "commandbutton",
+      "width": 80
+    },
+    {
+      "caption": "D",
+      "height": 27,
+      "left": 110,
+      "methods": {
+        "Click": "DO FORM OutroForm"
+      },
+      "name": "cmdOutro4",
+      "top": 57,
+      "type": "commandbutton",
+      "width": 80
+    },
+    {
+      "caption": "rodape",
+      "height": 17,
+      "left": 130,
+      "name": "lbl1",
+      "top": 104,
+      "type": "label",
+      "width": 100
+    }
+  ],
+  "height": 260,
+  "members": [],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320"
+  },
+  "name": "WrapForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 260
+}

@@ -1,0 +1,280 @@
+{
+  "caption": "Hover",
+  "controls": [
+    {
+      "height": 95,
+      "left": 10,
+      "name": "shpcnt1",
+      "properties": {
+        "BackColor": 16777215,
+        "BackStyle": 1,
+        "BorderColor": 15788258,
+        "BorderWidth": 1,
+        "Curvature": 0,
+        "FillColor": 16777215,
+        "FillStyle": 0
+      },
+      "top": 10,
+      "type": "shape",
+      "width": 160
+    },
+    {
+      "height": 95,
+      "left": 10,
+      "name": "cnt1",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 0
+      },
+      "top": 10,
+      "type": "container",
+      "width": 160
+    },
+    {
+      "height": 36,
+      "left": 10,
+      "name": "shpcnt2",
+      "parent": "cnt1",
+      "properties": {
+        "BackColor": 16746827,
+        "BackStyle": 1,
+        "BorderWidth": 0,
+        "Curvature": 10,
+        "FillColor": 16746827,
+        "FillStyle": 0
+      },
+      "top": 10,
+      "type": "shape",
+      "width": 160
+    },
+    {
+      "height": 24,
+      "left": 10,
+      "name": "acccnt2",
+      "parent": "cnt1",
+      "properties": {
+        "BackColor": 15426341,
+        "BackStyle": 1,
+        "BorderWidth": 0,
+        "Curvature": 0,
+        "FillColor": 15426341,
+        "FillStyle": 0
+      },
+      "top": 16,
+      "type": "shape",
+      "width": 3
+    },
+    {
+      "height": 36,
+      "left": 10,
+      "methods": {
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.shpcnt2.BackStyle = 1\nThis.Parent.shpcnt2.FillStyle = 0\nThis.Parent.shpcnt2.FillColor = 16250871\nThis.Parent.shpcnt2.BackColor = 16250871",
+        "MouseLeave": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.shpcnt2.FillColor = 16746827\nThis.Parent.shpcnt2.BackColor = 16746827"
+      },
+      "name": "cnt2",
+      "parent": "cnt1",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 0
+      },
+      "top": 10,
+      "type": "container",
+      "width": 160
+    },
+    {
+      "caption": "Inicio",
+      "height": 16,
+      "left": 30,
+      "methods": {
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.Parent.shpcnt2.BackStyle = 1\nThis.Parent.Parent.shpcnt2.FillStyle = 0\nThis.Parent.Parent.shpcnt2.FillColor = 16250871\nThis.Parent.Parent.shpcnt2.BackColor = 16250871"
+      },
+      "name": "cnt2t",
+      "parent": "cnt2",
+      "properties": {
+        "Alignment": 0,
+        "BackStyle": 0,
+        "FontBold": ".T.",
+        "FontName": "\"Segoe UI\"",
+        "FontSize": 10,
+        "ForeColor": 15426341
+      },
+      "top": 10,
+      "type": "label",
+      "width": 124
+    },
+    {
+      "height": 16,
+      "left": 8,
+      "methods": {
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.Parent.shpcnt2.BackStyle = 1\nThis.Parent.Parent.shpcnt2.FillStyle = 0\nThis.Parent.Parent.shpcnt2.FillColor = 16250871\nThis.Parent.Parent.shpcnt2.BackColor = 16250871"
+      },
+      "name": "cnt2i",
+      "parent": "cnt2",
+      "properties": {
+        "BackStyle": 0,
+        "Picture": "\"icons/home-primary.png\""
+      },
+      "top": 10,
+      "type": "image",
+      "width": 16
+    },
+    {
+      "height": 36,
+      "left": 10,
+      "name": "shpcnt3",
+      "parent": "cnt1",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 0,
+        "Curvature": 10,
+        "FillStyle": 1
+      },
+      "top": 49,
+      "type": "shape",
+      "width": 160
+    },
+    {
+      "height": 36,
+      "left": 10,
+      "methods": {
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.shpcnt3.BackStyle = 1\nThis.Parent.shpcnt3.FillStyle = 0\nThis.Parent.shpcnt3.FillColor = 16250871\nThis.Parent.shpcnt3.BackColor = 16250871",
+        "MouseLeave": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.shpcnt3.BackStyle = 0\nThis.Parent.shpcnt3.FillStyle = 1"
+      },
+      "name": "cnt3",
+      "parent": "cnt1",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 0
+      },
+      "top": 49,
+      "type": "container",
+      "width": 160
+    },
+    {
+      "caption": "Config",
+      "height": 16,
+      "left": 30,
+      "methods": {
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.Parent.shpcnt3.BackStyle = 1\nThis.Parent.Parent.shpcnt3.FillStyle = 0\nThis.Parent.Parent.shpcnt3.FillColor = 16250871\nThis.Parent.Parent.shpcnt3.BackColor = 16250871"
+      },
+      "name": "cnt3t",
+      "parent": "cnt3",
+      "properties": {
+        "Alignment": 0,
+        "BackStyle": 0,
+        "FontName": "\"Segoe UI\"",
+        "FontSize": 10,
+        "ForeColor": 2758415
+      },
+      "top": 10,
+      "type": "label",
+      "width": 124
+    },
+    {
+      "height": 16,
+      "left": 8,
+      "methods": {
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.Parent.shpcnt3.BackStyle = 1\nThis.Parent.Parent.shpcnt3.FillStyle = 0\nThis.Parent.Parent.shpcnt3.FillColor = 16250871\nThis.Parent.Parent.shpcnt3.BackColor = 16250871"
+      },
+      "name": "cnt3i",
+      "parent": "cnt3",
+      "properties": {
+        "BackStyle": 0,
+        "Picture": "\"icons/settings.png\""
+      },
+      "top": 10,
+      "type": "image",
+      "width": 16
+    },
+    {
+      "height": 30,
+      "left": 182,
+      "name": "shpcnt4",
+      "properties": {
+        "BackColor": 15426341,
+        "BackStyle": 1,
+        "BorderColor": 15426341,
+        "BorderWidth": 0,
+        "Curvature": 8,
+        "FillColor": 15426341,
+        "FillStyle": 0
+      },
+      "top": 22,
+      "type": "shape",
+      "width": 86
+    },
+    {
+      "height": 30,
+      "left": 182,
+      "methods": {
+        "Click": "ThisForm.salvar()",
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.shpcnt4.BackStyle = 1\nThis.Parent.shpcnt4.FillStyle = 0\nThis.Parent.shpcnt4.FillColor = 16610615\nThis.Parent.shpcnt4.BackColor = 16610615",
+        "MouseLeave": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.shpcnt4.FillColor = 15426341\nThis.Parent.shpcnt4.BackColor = 15426341"
+      },
+      "name": "cnt4",
+      "properties": {
+        "BackStyle": 0,
+        "BorderWidth": 0
+      },
+      "top": 22,
+      "type": "container",
+      "width": 86
+    },
+    {
+      "caption": "Salvar",
+      "height": 16,
+      "left": 22,
+      "methods": {
+        "Click": "ThisForm.salvar()",
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.Parent.shpcnt4.BackStyle = 1\nThis.Parent.Parent.shpcnt4.FillStyle = 0\nThis.Parent.Parent.shpcnt4.FillColor = 16610615\nThis.Parent.Parent.shpcnt4.BackColor = 16610615"
+      },
+      "name": "cnt4t",
+      "parent": "cnt4",
+      "properties": {
+        "Alignment": 2,
+        "BackStyle": 0,
+        "FontName": "\"Segoe UI\"",
+        "FontSize": 9,
+        "ForeColor": 16777215
+      },
+      "top": 7,
+      "type": "label",
+      "width": 64
+    },
+    {
+      "height": 16,
+      "left": 8,
+      "methods": {
+        "Click": "ThisForm.salvar()",
+        "MouseEnter": "LPARAMETERS nButton, nShift, nXCoord, nYCoord\nThis.Parent.Parent.shpcnt4.BackStyle = 1\nThis.Parent.Parent.shpcnt4.FillStyle = 0\nThis.Parent.Parent.shpcnt4.FillColor = 16610615\nThis.Parent.Parent.shpcnt4.BackColor = 16610615"
+      },
+      "name": "cnt4i",
+      "parent": "cnt4",
+      "properties": {
+        "BackStyle": 0,
+        "Picture": "\"icons/save-white.png\"",
+        "Stretch": 1
+      },
+      "top": 7,
+      "type": "image",
+      "width": 16
+    }
+  ],
+  "height": 300,
+  "members": [
+    {
+      "desc": "(TypeScript) salvar",
+      "kind": "method",
+      "name": "salvar"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320\n\tThisForm.shpcnt1.BackColor = 16777215\n\tThisForm.shpcnt1.BorderColor = 15788258\n\tThisForm.shpcnt1.FillColor = 16777215\n\tThisForm.cnt1.shpcnt2.BackColor = 16746827\n\tThisForm.cnt1.shpcnt2.FillColor = 16746827\n\tThisForm.cnt1.acccnt2.BackColor = 15426341\n\tThisForm.cnt1.acccnt2.FillColor = 15426341\n\tThisForm.cnt1.cnt2.cnt2t.ForeColor = 15426341\n\tThisForm.cnt1.cnt3.cnt3t.ForeColor = 2758415\n\tThisForm.shpcnt4.BackColor = 15426341\n\tThisForm.shpcnt4.BorderColor = 15426341\n\tThisForm.shpcnt4.FillColor = 15426341\n\tThisForm.cnt4.cnt4t.ForeColor = 16777215",
+    "salvar": ""
+  },
+  "name": "HoverForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 420
+}

@@ -1,0 +1,73 @@
+{
+  "caption": "Clientes",
+  "controls": [
+    {
+      "caption": "Nome",
+      "height": 17,
+      "left": 10,
+      "name": "lbl1",
+      "top": 10,
+      "type": "label",
+      "width": 100
+    },
+    {
+      "height": 23,
+      "left": 10,
+      "name": "txtNome",
+      "properties": {
+        "ControlSource": "\"ThisForm.nome\""
+      },
+      "top": 37,
+      "type": "textbox",
+      "width": 300
+    },
+    {
+      "caption": "Salvar",
+      "height": 27,
+      "left": 20,
+      "name": "cmd1",
+      "properties": {
+        "BackColor": 15426341,
+        "BackStyle": 1,
+        "ForeColor": 16777215
+      },
+      "top": 80,
+      "type": "commandbutton",
+      "width": 100
+    },
+    {
+      "caption": "Pedidos",
+      "height": 27,
+      "left": 128,
+      "methods": {
+        "Click": "DO FORM PedidoForm"
+      },
+      "name": "cmdPedido",
+      "properties": {
+        "BackColor": 4891414,
+        "BackStyle": 1,
+        "ForeColor": 16777215
+      },
+      "top": 80,
+      "type": "commandbutton",
+      "width": 100
+    }
+  ],
+  "height": 360,
+  "members": [
+    {
+      "default": "\"\"",
+      "desc": "(bind) nome",
+      "kind": "property",
+      "name": "nome"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320\n\tThisForm.cmd1.BackColor = 15426341\n\tThisForm.cmd1.ForeColor = 16777215\n\tThisForm.cmdPedido.BackColor = 4891414\n\tThisForm.cmdPedido.ForeColor = 16777215"
+  },
+  "name": "ClienteForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 520
+}

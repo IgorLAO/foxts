@@ -1,5 +1,13 @@
 node_modules/
 dist/
+preview/dist/
+showcase/**/dist/
+showcase/**/build/
+
+# pacotes e artefatos de scratch/erro (evita vazar layout/dados da maquina)
+*.tgz
+*.fpw
+foxts-errors.log
 
 # binario do foxcli: regeravel da fonte Go vendorizada via `npm run foxcli:build`
 foxcli/foxcli.exe

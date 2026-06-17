@@ -1,0 +1,73 @@
+{
+  "caption": "Pedido",
+  "controls": [
+    {
+      "height": 23,
+      "left": 20,
+      "name": "txtCodigo",
+      "properties": {
+        "ControlSource": "\"ThisForm.codigo\""
+      },
+      "top": 20,
+      "type": "textbox",
+      "width": 70
+    },
+    {
+      "height": 23,
+      "left": 95,
+      "name": "txtNome",
+      "properties": {
+        "ControlSource": "\"ThisForm.nome\""
+      },
+      "top": 20,
+      "type": "textbox",
+      "width": 220
+    },
+    {
+      "caption": "Buscar",
+      "height": 27,
+      "left": 320,
+      "name": "cmd1",
+      "top": 20,
+      "type": "commandbutton",
+      "width": 100
+    },
+    {
+      "caption": "Gravar pedido",
+      "height": 27,
+      "left": 10,
+      "name": "cmd2",
+      "properties": {
+        "BackColor": 15426341,
+        "BackStyle": 1,
+        "ForeColor": 16777215
+      },
+      "top": 69,
+      "type": "commandbutton",
+      "width": 100
+    }
+  ],
+  "height": 360,
+  "members": [
+    {
+      "default": "\"\"",
+      "desc": "(bind) codigo",
+      "kind": "property",
+      "name": "codigo"
+    },
+    {
+      "default": "\"\"",
+      "desc": "(bind) nome",
+      "kind": "property",
+      "name": "nome"
+    }
+  ],
+  "methods": {
+    "Init": "\tThisForm.BackColor = 16579320\n\tThisForm.cmd2.BackColor = 15426341\n\tThisForm.cmd2.ForeColor = 16777215"
+  },
+  "name": "PedidoForm",
+  "properties": {
+    "BackColor": 16579320
+  },
+  "width": 520
+}
